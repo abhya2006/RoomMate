@@ -22,3 +22,8 @@ backend/.env.*
 # OS
 .DS_Store
 Thumbs.db
+
+# Web build artifacts
+web/node_modules/
+web/dist/
+web/tsconfig.tsbuildinfo
