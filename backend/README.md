@@ -1,6 +1,7 @@
 # RoomMate API
 
-Spring Boot backend for RoomMate. The module is intentionally isolated from the existing Next.js app in `web/`.
+Spring Boot backend for RoomMate. The module is intentionally isolated from the
+React frontend in `../frontend/`.
 
 ## Prerequisites
 
@@ -33,9 +34,10 @@ Flyway owns schema creation. Keep `spring.jpa.hibernate.ddl-auto=validate`; add 
 
 ## Authentication
 
-The ready-to-import Postman collection is at `../postman/RoomMate API.postman_collection.json`.
-Import it into Postman, select the `RoomMate Local` environment, then run `Health`,
-`Register`, and `Login` in that order. The login script stores the JWT automatically.
+The Postman requests are at `../postman/RoomMate API/`. Import them into Postman,
+select the `RoomMate Local` environment, then run `Health`, `Register`, and the
+matching `Register verify OTP` request. Login similarly requires `Login` followed
+by `Login verify OTP`; only the verification response contains the JWT.
 For the complete endpoint list, request bodies, auth requirements and expected
 status codes, see [`API_ENDPOINTS.md`](./API_ENDPOINTS.md).
 

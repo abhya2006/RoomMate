@@ -115,39 +115,13 @@ function AuthModal({ mode, onClose, onModeChange }: { mode: ModalMode; onClose: 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [verificationBusy, setVerificationBusy] = useState<'email' | 'phone' | null>(null);
   const [emailOtp, setEmailOtp] = useState('');
   const [phoneOtp, setPhoneOtp] = useState('');
-  const [emailVerified, setEmailVerified] = useState(false);
-  const [phoneVerified, setPhoneVerified] = useState(false);
-  const [emailOtpSent, setEmailOtpSent] = useState(false);
-  const [phoneOtpSent, setPhoneOtpSent] = useState(false);
+  const [challengeId, setChallengeId] = useState('');
   const [digiLockerStarted, setDigiLockerStarted] = useState(false);
   const [form, setForm] = useState({ identifier:'', password:'', username:'', email:'', fullName:'', phoneNumber:'', aadhaarNumber:'' });
   if (!mode) return null;
   const update = (key: keyof typeof form, value: string) => setForm((f) => ({ ...f, [key]: value }));
-  async function sendOtp(kind: 'email' | 'phone') {
-    const value = kind === 'email' ? form.email.trim() : form.phoneNumber.trim();
-    if (!value) { setError(`Enter your ${kind === 'email' ? 'email address' : 'mobile number'} first.`); return; }
-    setVerificationBusy(kind); setError('');
-    try {
-      if (kind === 'email') { setEmailOtpSent(true); await api.sendEmailOtp(value); }
-      else { setPhoneOtpSent(true); await api.sendPhoneOtp(value); }
-    } catch (err) { setError(err instanceof Error ? err.message : `Could not send ${kind} OTP.`); }
-    finally { setVerificationBusy(null); }
-  }
-  async function verifyOtp(kind: 'email' | 'phone') {
-    const value = kind === 'email' ? form.email.trim() : form.phoneNumber.trim();
-    const otp = kind === 'email' ? emailOtp.trim() : phoneOtp.trim();
-    if (!otp) { setError('Enter the OTP you received.'); return; }
-    setVerificationBusy(kind); setError('');
-    try {
-      const result = kind === 'email' ? await api.verifyEmailOtp(value, otp) : await api.verifyPhoneOtp(value, otp);
-      if (!result.verified) throw new Error(`${kind === 'email' ? 'Email' : 'Phone'} OTP is invalid or expired.`);
-      if (kind === 'email') setEmailVerified(true); else setPhoneVerified(true);
-    } catch (err) { setError(err instanceof Error ? err.message : 'OTP verification failed.'); }
-    finally { setVerificationBusy(null); }
-  }
   async function verifyDigiLocker() {
     const token = localStorage.getItem('roommate_token');
     if (!token) { setError('DigiLocker verification starts after account creation. Please complete signup first, then verify from your dashboard.'); return; }
@@ -163,15 +137,28 @@ function AuthModal({ mode, onClose, onModeChange }: { mode: ModalMode; onClose: 
     e.preventDefault(); setBusy(true); setError('');
     try {
       if (mode === 'forgot') {
-        await api.forgotPassword(form.email.trim());
-        setError('If an account exists for this email, a reset link has been sent.');
+        if (!challengeId) {
+          const result = await api.forgotPassword(form.email.trim());
+          setChallengeId(result.challengeId);
+          setError('OTP sent to your email and phone. Enter both OTPs and your new password.');
+          return;
+        }
+        await api.verifyForgotPassword(challengeId, emailOtp.trim(), phoneOtp.trim(), form.password);
+        setError('Password reset successful. You can now log in.');
+        setChallengeId('');
+        onModeChange('login');
       } else {
-        if (mode === 'register' && (!emailVerified || !phoneVerified)) {
-          throw new Error('Please verify both your email and phone number before creating your account.');
+        if (!challengeId) {
+          const result = mode === 'login'
+            ? await api.login(form.identifier.trim(), form.password)
+            : await api.register({ username: form.username.trim(), email: form.email.trim(), password: form.password, fullName: form.fullName.trim(), phoneNumber: form.phoneNumber.trim(), aadhaarNumber: form.aadhaarNumber.trim() });
+          setChallengeId(result.challengeId);
+          setError('OTP sent to your email and phone. Enter both OTPs to continue.');
+          return;
         }
         const result = mode === 'login'
-          ? await api.login(form.identifier.trim(), form.password)
-          : await api.register({ username: form.username.trim(), email: form.email.trim(), password: form.password, fullName: form.fullName.trim(), phoneNumber: form.phoneNumber.trim(), aadhaarNumber: form.aadhaarNumber.trim() });
+          ? await api.verifyLoginOtp(challengeId, emailOtp.trim(), phoneOtp.trim())
+          : await api.verifyRegistrationOtp(challengeId, emailOtp.trim(), phoneOtp.trim());
         setSession(result.token, result.user); onClose();
       }
     } catch (err) { setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.'); }
@@ -182,13 +169,14 @@ function AuthModal({ mode, onClose, onModeChange }: { mode: ModalMode; onClose: 
       {mode === 'forgot' ? <label>Email address<input type="email" autoComplete="email" required placeholder="you@example.com" value={form.email} onChange={(e) => update('email',e.target.value)}/></label> : mode === 'register' ? <>
         <label>Full name<input autoComplete="name" required minLength={2} maxLength={120} placeholder="Your full name" value={form.fullName} onChange={(e) => update('fullName',e.target.value)}/></label>
         <label>Username<input autoComplete="username" required minLength={3} maxLength={50} placeholder="Choose a username" value={form.username} onChange={(e) => update('username',e.target.value)}/></label>
-        <label>Mobile number<div className="verification-input"><input inputMode="numeric" autoComplete="tel-national" required pattern="[6-9][0-9]{9}" maxLength={10} placeholder="10-digit number" value={form.phoneNumber} onChange={(e) => { setPhoneVerified(false); setPhoneOtpSent(false); update('phoneNumber',e.target.value.replace(/\D/g,'').slice(0,10)); }}/><button type="button" disabled={verificationBusy === 'phone' || phoneVerified} onClick={() => sendOtp('phone')}>{phoneVerified ? 'Verified' : verificationBusy === 'phone' ? 'Sending…' : phoneOtpSent ? 'Resend OTP' : 'Send OTP'}</button></div><div className="otp-row"><input className="otp-input" inputMode="numeric" maxLength={6} placeholder="Enter phone OTP here" value={phoneOtp} disabled={!phoneOtpSent || phoneVerified} onChange={(e) => setPhoneOtp(e.target.value.replace(/\D/g,'').slice(0,6))}/><button type="button" onClick={() => verifyOtp('phone')} disabled={!phoneOtpSent || verificationBusy === 'phone' || phoneVerified}>Verify OTP</button></div></label>
-        <label>Email address<div className="verification-input"><input type="email" autoComplete="email" required placeholder="you@example.com" value={form.email} onChange={(e) => { setEmailVerified(false); setEmailOtpSent(false); update('email',e.target.value); }}/><button type="button" disabled={verificationBusy === 'email' || emailVerified} onClick={() => sendOtp('email')}>{emailVerified ? 'Verified' : verificationBusy === 'email' ? 'Sending…' : emailOtpSent ? 'Resend OTP' : 'Send OTP'}</button></div><div className="otp-row"><input className="otp-input" inputMode="numeric" maxLength={6} placeholder="Enter email OTP here" value={emailOtp} disabled={!emailOtpSent || emailVerified} onChange={(e) => setEmailOtp(e.target.value.replace(/\D/g,'').slice(0,6))}/><button type="button" onClick={() => verifyOtp('email')} disabled={!emailOtpSent || verificationBusy === 'email' || emailVerified}>Verify OTP</button></div></label>
+        <label>Mobile number<input inputMode="numeric" autoComplete="tel-national" required pattern="[6-9][0-9]{9}" maxLength={10} placeholder="10-digit number" value={form.phoneNumber} onChange={(e) => update('phoneNumber',e.target.value.replace(/\D/g,'').slice(0,10))}/></label>
+        <label>Email address<input type="email" autoComplete="email" required placeholder="you@example.com" value={form.email} onChange={(e) => update('email',e.target.value)}/></label>
         <label>Aadhaar number <span className="field-hint">12 digits · sent to your backend over the configured connection</span><input inputMode="numeric" required pattern="[0-9]{12}" maxLength={12} placeholder="XXXX XXXX XXXX" value={form.aadhaarNumber} onChange={(e) => update('aadhaarNumber',e.target.value.replace(/\D/g,'').slice(0,12))}/></label>
       </> : <label>Email or username<input autoComplete="username" required placeholder="Enter email or username" value={form.identifier} onChange={(e) => update('identifier',e.target.value)}/></label>}
-      {mode !== 'forgot' && <label>Password<div className="password-wrap"><input type={showPassword ? 'text' : 'password'} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} minLength={8} maxLength={72} required placeholder="At least 8 characters" value={form.password} onChange={(e) => update('password',e.target.value)}/><button type="button" onClick={() => setShowPassword(!showPassword)}>{showPassword ? 'Hide' : 'Show'}</button></div></label>}
+      <label>{mode === 'forgot' ? 'New password' : 'Password'}<div className="password-wrap"><input type={showPassword ? 'text' : 'password'} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} minLength={8} maxLength={72} required placeholder="At least 8 characters" value={form.password} onChange={(e) => update('password',e.target.value)}/><button type="button" onClick={() => setShowPassword(!showPassword)}>{showPassword ? 'Hide' : 'Show'}</button></div></label>
+      {challengeId && <><label>Email OTP<input className="otp-input" inputMode="numeric" maxLength={6} required placeholder="6-digit email OTP" value={emailOtp} onChange={(e) => setEmailOtp(e.target.value.replace(/\D/g,'').slice(0,6))}/></label><label>Phone OTP<input className="otp-input" inputMode="numeric" maxLength={6} required placeholder="6-digit phone OTP" value={phoneOtp} onChange={(e) => setPhoneOtp(e.target.value.replace(/\D/g,'').slice(0,6))}/></label></>}
       {error && <div className="form-error" role="alert">{error}</div>}
-      {mode === 'register' && <><label className="digilocker-check"><input type="checkbox" checked={digiLockerStarted} onChange={verifyDigiLocker} disabled={busy || digiLockerStarted}/><span><strong>Verify with DigiLocker</strong><small>Click to securely verify your identity</small></span><ShieldCheck size={19}/></label><p className="verification-summary"><span className={emailVerified ? 'verified' : ''}>✉ Email {emailVerified ? 'verified' : 'not verified'}</span><span className={phoneVerified ? 'verified' : ''}>⌕ Phone {phoneVerified ? 'verified' : 'not verified'}</span><span className={digiLockerStarted ? 'verified' : ''}>♢ DigiLocker {digiLockerStarted ? 'started' : 'pending'}</span></p><p className="privacy-note"><LockKeyhole size={13}/> DigiLocker opens a secure government verification page. If you are new, complete signup first and verify from your dashboard.</p></>}
+      {mode === 'register' && <><label className="digilocker-check"><input type="checkbox" checked={digiLockerStarted} onChange={verifyDigiLocker} disabled={busy || digiLockerStarted}/><span><strong>Verify with DigiLocker</strong><small>Click to securely verify your identity</small></span><ShieldCheck size={19}/></label><p className="verification-summary"><span className={challengeId ? 'verified' : ''}>✉ Email + phone OTP {challengeId ? 'sent' : 'pending'}</span><span className={digiLockerStarted ? 'verified' : ''}>♢ DigiLocker {digiLockerStarted ? 'started' : 'pending'}</span></p><p className="privacy-note"><LockKeyhole size={13}/> Both OTPs are sent together after you submit your details.</p></>}
       <button className="auth-submit" disabled={busy} type="submit">{busy ? <LoaderCircle className="spin" size={17}/> : null}{busy ? 'Please wait…' : mode === 'login' ? 'Log in to RoomMate' : mode === 'forgot' ? 'Send reset link' : 'Create my account'}{!busy && <ArrowRight size={17}/>}</button>
     </form><div className="auth-switch">{mode === 'login' ? <><button className="forgot-link" onClick={() => { setError(''); onModeChange('forgot'); }}>Forgot password?</button><span>New around here?</span><button onClick={() => { setError(''); onModeChange('register'); }}>Create an account</button></> : mode === 'forgot' ? <><span>Remembered your password?</span><button onClick={() => { setError(''); onModeChange('login'); }}>Log in</button></> : <>Already have an account? <button onClick={() => { setError(''); onModeChange('login'); }}>Log in</button></>}</div>
   </section></div>;

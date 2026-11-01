@@ -1,0 +1,14 @@
+name: Register verify OTP
+method: POST
+url: '{{baseUrl}}/api/v1/auth/register/verify-otp'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "challengeId": "challenge-id-from-register",
+      "emailOtp": "123456",
+      "phoneOtp": "123456"
+    }

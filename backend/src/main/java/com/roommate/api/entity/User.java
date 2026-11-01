@@ -89,6 +89,10 @@ public class User {
         return passwordHash;
     }
 
+    public void setPasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
+    }
+
     public String getRole() {
         return role;
     }
@@ -115,5 +119,13 @@ public class User {
 
     public boolean isDigilockerVerified() {
         return digilockerVerified;
+    }
+
+    public void markEmailVerified() {
+        emailVerified = true;
+    }
+
+    public void markPhoneVerified() {
+        phoneVerified = true;
     }
 }

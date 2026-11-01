@@ -4,7 +4,7 @@
 
 - Work only inside this repository.
 - Do not use external agents, remote coding services, or unreviewed automation.
-- Preserve the existing `web/` frontend unless a task explicitly asks for frontend changes.
+- Preserve the existing `frontend/` frontend unless a task explicitly asks for frontend changes.
 - Keep backend work under `backend/`.
 
 ## Git safety

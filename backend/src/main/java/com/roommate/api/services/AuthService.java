@@ -4,6 +4,8 @@ import com.roommate.api.dto.AuthDtos.AuthResponse;
 import com.roommate.api.dto.AuthDtos.LoginRequest;
 import com.roommate.api.dto.AuthDtos.RegisterRequest;
 import com.roommate.api.dto.AuthDtos.UserResponse;
+import com.roommate.api.dto.OtpDtos.ChallengeResponse;
+import com.roommate.api.dto.OtpDtos.VerifyOtpRequest;
 import com.roommate.api.entity.User;
 import com.roommate.api.repository.UserRepository;
 import java.util.Locale;
@@ -22,20 +24,23 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final OtpService otpService;
     private final String aadhaarHashSecret;
 
     public AuthService(
             UserRepository userRepository,
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
+            OtpService otpService,
             @Value("${app.security.aadhaar-hash-secret}") String aadhaarHashSecret) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.otpService = otpService;
         this.aadhaarHashSecret = aadhaarHashSecret;
     }
 
-    public AuthResponse register(RegisterRequest request) {
+    public ChallengeResponse register(RegisterRequest request) {
         String username = request.username().trim();
         String email = request.email().trim().toLowerCase(Locale.ROOT);
         String phoneNumber = request.phoneNumber().trim();
@@ -61,15 +66,23 @@ public class AuthService {
                 phoneNumber,
                 aadhaarHash,
                 request.aadhaarNumber().substring(8)));
-        return responseFor(user);
+        return otpService.issue(user, "REGISTRATION");
     }
 
-    public AuthResponse login(LoginRequest request) {
+    public ChallengeResponse login(LoginRequest request) {
         String identifier = request.identifier().trim();
         User user = userRepository.findByUsernameIgnoreCaseOrEmailIgnoreCase(identifier, identifier)
                 .filter(candidate -> passwordEncoder.matches(request.password(), candidate.getPasswordHash()))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials"));
-        return responseFor(user);
+        return otpService.issue(user, "LOGIN");
+    }
+
+    public AuthResponse verifyLogin(VerifyOtpRequest request) {
+        return responseFor(otpService.verify(request, "LOGIN"));
+    }
+
+    public AuthResponse verifyRegistration(VerifyOtpRequest request) {
+        return responseFor(otpService.verify(request, "REGISTRATION"));
     }
 
     public UserResponse getUser(String username) {

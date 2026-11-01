@@ -20,6 +20,12 @@ Select **RoomMate Local**, then run:
 3. `Authentication / Login`
 4. `Authentication / Current user (JWT required)`
 5. `DigiLocker / Start verification`
+6. `Authentication / Forgot password`
+7. `Authentication / Reset password`
+8. `Authentication / Register verify OTP`
+9. `Authentication / Login verify OTP`
+10. `Authentication / Forgot password request OTP`
+11. `Authentication / Forgot password verify OTP`
 
 The Login request stores the returned JWT in `authToken`, so the Current user
 request sends it automatically.
@@ -34,6 +40,9 @@ request sends it automatically.
 | POST | `/api/v1/auth/login` | Public | Login with username or email |
 | GET | `/api/v1/auth/me` | Bearer JWT | Return the logged-in user |
 | POST | `/api/v1/auth/digilocker/start` | Public | DigiLocker integration boundary |
+
+| POST | `/api/v1/auth/forgot-password` | Public | Send email and phone reset OTPs |
+| POST | `/api/v1/auth/reset-password` | Public | Legacy token reset endpoint |
 
 ## Register request
 
@@ -64,6 +73,34 @@ The full Aadhaar number is never returned or stored. The response exposes only
 
 Expected success: `200 OK`. Copy the `token` value only if testing manually.
 In Postman, the collection test script stores it automatically.
+
+## Forgot password
+
+Request:
+
+```json
+{
+  "email": "abhay@example.com"
+}
+```
+
+The endpoint returns `202 Accepted`. Configure `MAIL_HOST`, `MAIL_PORT`,
+`MAIL_USERNAME`, and `MAIL_PASSWORD` in the ignored `backend/.env` before
+testing with a real email account. Reset tokens are stored only as SHA-256
+hashes, expire after 15 minutes by default, and can be used once.
+
+Reset request:
+
+```json
+{
+  "token": "token-from-the-reset-email",
+  "newPassword": "NewStrongPass@@123"
+}
+```
+
+Expected success: `204 No Content`. Without mail configuration, an existing
+user's forgot-password request returns `503 Service Unavailable`; no token is
+returned in the API response.
 
 For manual protected requests:
 
