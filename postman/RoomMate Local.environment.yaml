@@ -1,0 +1,6 @@
+name: RoomMate Local
+values:
+  - key: baseUrl
+    value: 'http://localhost:8080'
+  - key: authToken
+    value: ''

@@ -1,0 +1,16 @@
+# Use this workspace to collaborate
+workspace:
+  id: 7b592e7b-b478-4e4b-ad48-cfe4039553ef
+
+localResources:
+  collections:
+    - ../RoomMate API
+  environments:
+    - ../RoomMate Local.postman_environment.json
+    - ../RoomMate Local.environment.yaml
+
+# Each entry here maps a local resource to one or more corresponding objects in Postman Cloud
+
+cloudResources:
+  collections:
+    ../RoomMate API: d4a9f1d0-5d18-4bf3-b8b5-1a2e8de0c901

@@ -1,0 +1,8 @@
+$kind: collection
+description: Local API requests for the RoomMate Spring Boot backend.
+variables:
+  baseUrl: http://localhost:8080
+  username: abhay{{$randomInt}}
+  email: abhay{{$randomInt}}@example.com
+  password: StrongPass@@123
+  authToken: ""
