@@ -8,6 +8,8 @@ import com.roommate.api.repository.RoomListingRepository;
 import com.roommate.api.repository.UserRepository;
 import java.util.List;
 import java.util.Comparator;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,10 +19,17 @@ import org.springframework.web.server.ResponseStatusException;
 public class RoomListingService {
     private final RoomListingRepository roomRepository;
     private final UserRepository userRepository;
+    private final ObjectMapper objectMapper;
 
-    public RoomListingService(RoomListingRepository roomRepository, UserRepository userRepository) {
+    public RoomListingService(RoomListingRepository roomRepository, UserRepository userRepository,
+            ObjectMapper objectMapper) {
         this.roomRepository = roomRepository;
         this.userRepository = userRepository;
+        this.objectMapper = objectMapper;
+    }
+
+    public RoomListingService(RoomListingRepository roomRepository, UserRepository userRepository) {
+        this(roomRepository, userRepository, new ObjectMapper());
     }
 
     @Transactional
@@ -31,19 +40,34 @@ public class RoomListingService {
         }
         User owner = userRepository.findByUsernameIgnoreCase(username)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        List<String> photos = request.imageUrls() == null ? List.of() : request.imageUrls().stream()
+                .filter(photo -> photo != null && !photo.isBlank()).toList();
+        if (photos.size() > 8 || photos.stream().anyMatch(photo -> photo.length() > 2_000_000)
+                || photos.stream().mapToLong(String::length).sum() > 8_000_000) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Upload up to 8 room photos, with a total size under 8 MB");
+        }
         RoomListing room = new RoomListing(owner, request.title().trim(),
                 request.location().trim(), request.capacity(), request.occupancy(),
                 request.privacy().trim(), request.stayType().trim(), request.rent(),
                 request.description().trim(), request.imageUrl());
+        try {
+            if (!photos.isEmpty()) room.setImageUrls(objectMapper.writeValueAsString(photos));
+            else if (request.imageUrl() != null && !request.imageUrl().isBlank()) {
+                room.setImageUrls(objectMapper.writeValueAsString(List.of(request.imageUrl())));
+            }
+        } catch (JsonProcessingException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Room photos could not be saved");
+        }
         room.setCoordinates(request.latitude(), request.longitude());
         room = roomRepository.save(room);
-        return RoomResponse.from(room);
+        return RoomResponse.from(room, objectMapper);
     }
 
     @Transactional(readOnly = true)
     public List<RoomResponse> findMine(String username) {
         return roomRepository.findByOwnerUsernameIgnoreCaseOrderByCreatedAtDesc(username)
-                .stream().map(RoomResponse::from).toList();
+                .stream().map(room -> RoomResponse.from(room, objectMapper)).toList();
     }
 
     @Transactional(readOnly = true)
@@ -63,11 +87,11 @@ public class RoomListingService {
                 .sorted(Comparator.comparingDouble(Nearby::distanceKm))
                 .limit(safeLimit)
                 .map(item -> {
-                    RoomResponse response = RoomResponse.from(item.room());
+                    RoomResponse response = RoomResponse.from(item.room(), objectMapper);
                     return new RoomResponse(response.id(), response.title(), response.location(),
                             response.capacity(), response.occupancy(), response.privacy(),
                             response.stayType(), response.rent(), response.description(),
-                            response.imageUrl(), response.latitude(), response.longitude(),
+                            response.imageUrl(), response.imageUrls(), response.latitude(), response.longitude(),
                             item.distanceKm(), response.status(), response.createdAt(),
                             response.ownerUsername(), response.ownerFullName(), null);
                 })

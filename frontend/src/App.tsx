@@ -1,8 +1,8 @@
 import { useMemo, useRef, useState, useEffect, type FormEvent } from 'react';
 import {
-  ArrowDown, ArrowRight, ArrowUpRight, BadgeCheck, Bath, BedDouble, Building2,
+  ArrowDown, ArrowRight, ArrowUpRight, ArrowLeft, BadgeCheck, Bath, BedDouble, Building2,
   Check, ChevronDown, Compass, Heart, House, KeyRound, LoaderCircle, LockKeyhole,
-  Mail, MapPin, Menu, Search, ShieldCheck, SlidersHorizontal, Sparkles, Users, Wifi, X,
+  Mail, MapPin, Menu, Search, ShieldCheck, SlidersHorizontal, Sparkles, Users, Wifi, X, Phone, LifeBuoy,
   Camera, Plus, Sun, Moon, LogOut,
 } from 'lucide-react';
 import { api } from './lib/api';
@@ -11,7 +11,7 @@ import { useAuth } from './context/AuthContext';
 
 type StayType = 'Monthly stays' | 'Short stays';
 type ModalMode = 'login' | 'register' | 'forgot' | null;
-type Room = { id: number; title: string; area: string; detail: string; price: number; period: string; type: StayType; room: string; color: string; image: string; tag: string; rating: string; ownerName?: string; ownerContact?: string; latitude?: number; longitude?: number };
+type Room = { id: number; title: string; area: string; detail: string; price: number; period: string; type: StayType; room: string; color: string; image: string; imageUrls?: string[]; tag: string; rating: string; ownerName?: string; ownerContact?: string; latitude?: number; longitude?: number };
 type Booking = Room & { bookingId: number; bookingOtp?: string; status: ApiBooking['status']; bookedAt: string; renterName?: string; renterPhone?: string };
 
 const rooms: Room[] = [
@@ -86,9 +86,11 @@ function SearchPanel({ onSearch }: { onSearch: (query: string, budget: string, r
 }
 
 function RoomCard({ room, saved, onSave, onBook }: { room: Room; saved: boolean; onSave: (id: number) => void; onBook: (room: Room) => void }) {
-  return <article className="room-card"><div className={`room-photo ${room.color}`} style={{ backgroundImage: `linear-gradient(180deg, rgba(20,30,24,.03), rgba(20,30,24,.08)), url(https://images.unsplash.com/${room.image}?auto=format&fit=crop&w=900&q=85)` }}>
-    <span className="room-tag">{room.tag}</span><button className={saved ? 'save-button saved' : 'save-button'} type="button" aria-label={saved ? 'Remove saved home' : 'Save home'} onClick={() => onSave(room.id)}><Heart size={18} fill={saved ? 'currentColor' : 'none'}/></button><span className="photo-count">01 <i/> 04</span>
-  </div><div className="room-info"><div className="room-location"><MapPin size={12}/>{room.area}<span className="rating">★ {room.rating}</span></div><h3>{room.title}</h3><p>{room.detail}</p><div className="room-bottom"><div className="room-price"><strong>₹{room.price.toLocaleString('en-IN')}</strong><span>{room.period}</span></div><button className="book-button" type="button" onClick={() => onBook(room)}>Book now <ArrowRight size={14}/></button></div></div></article>;
+  const photos = room.imageUrls?.length ? room.imageUrls : [`https://images.unsplash.com/${room.image}?auto=format&fit=crop&w=900&q=85`];
+  const [photoIndex, setPhotoIndex] = useState(0);
+  return <article className="room-card"><div className={`room-photo ${room.color}`} style={{ backgroundImage: `linear-gradient(180deg, rgba(20,30,24,.03), rgba(20,30,24,.08)), url("${photos[photoIndex]}")` }}>
+    <span className="room-tag">{room.tag}</span><button className={saved ? 'save-button saved' : 'save-button'} type="button" aria-label={saved ? 'Remove saved home' : 'Save home'} onClick={() => onSave(room.id)}><Heart size={18} fill={saved ? 'currentColor' : 'none'}/></button>{photos.length > 1 && <><button className="photo-nav photo-prev" type="button" aria-label="Previous room photo" onClick={() => setPhotoIndex((index) => (index - 1 + photos.length) % photos.length)}><ArrowLeft size={14}/></button><button className="photo-nav photo-next" type="button" aria-label="Next room photo" onClick={() => setPhotoIndex((index) => (index + 1) % photos.length)}><ArrowRight size={14}/></button><span className="photo-count">{String(photoIndex + 1).padStart(2, '0')} <i/> {String(photos.length).padStart(2, '0')}</span></>}
+    </div><div className="room-info"><div className="room-location"><MapPin size={12}/>{room.area}<span className="rating">★ {room.rating}</span></div><h3>{room.title}</h3>{room.ownerName && <p className="room-owner-name">Owner: {room.ownerName}</p>}<p>{room.detail}</p><div className="room-bottom"><div className="room-price"><strong>₹{room.price.toLocaleString('en-IN')}</strong><span>{room.period}</span></div><button className="book-button" type="button" onClick={() => onBook(room)}>Book now <ArrowRight size={14}/></button></div></div></article>;
 }
 
 function BookingModal({ booking, onClose }: { booking: Booking; onClose: () => void }) {
@@ -116,6 +118,13 @@ function Listings({ filters, onLoginRequired }: { filters: { query: string; budg
   };
   useEffect(() => {
     if (token) void api.myBookings(token).then((items) => setBookings(items.map(toBooking))).catch(() => undefined);
+  }, [token]);
+  useEffect(() => {
+    if (!token) return;
+    const timer = window.setInterval(() => {
+      void api.myBookings(token).then((items) => setBookings(items.map(toBooking))).catch(() => undefined);
+    }, 10000);
+    return () => window.clearInterval(timer);
   }, [token]);
   useEffect(() => {
     if (!filters) return;
@@ -170,7 +179,7 @@ function Listings({ filters, onLoginRequired }: { filters: { query: string; budg
     id: r.id, title: r.title, area: r.location, detail: `${r.privacy} room · ${r.capacity} people · ${r.distanceKm?.toFixed(1) ?? '?'} km away`,
     price: r.rent, period: r.stayType === 'Monthly' ? '/ month' : '/ night', type: filters?.stay || 'Monthly stays',
     room: r.privacy === 'Shared' ? 'Shared room' : 'Private room', color: 'sage', image: 'photo-1522708323590-d24dbb6b0267',
-    ownerName: r.ownerFullName, ownerContact: r.ownerPhoneNumber, latitude: r.latitude, longitude: r.longitude,
+    ownerName: r.ownerFullName, ownerContact: r.ownerPhoneNumber, latitude: r.latitude, longitude: r.longitude, imageUrls: r.imageUrls,
     tag: r.distanceKm !== undefined ? `${r.distanceKm.toFixed(1)} km away` : 'Nearby room', rating: 'New',
   } as Room)), [nearby, filters]);
   function toBooking(item: ApiBooking): Booking {
@@ -208,7 +217,7 @@ function TrustPanel() { return <section className="trust-panel section-container
 
 function HostBanner({ onAddRoom }: { onAddRoom: () => void }) { return <section className="host-banner section-container" id="host"><div className="host-person">✦</div><div className="host-copy"><h2>List Your Room</h2><p>Reach thousands of verified students and professionals looking for a stay.</p></div><div className="host-benefits"><span>♢ Get More<br/><b>Visibility</b></span><span>♢ Verified<br/><b>Tenants</b></span><span>ϟ Quick &<br/><b>Secure Listing</b></span></div><button type="button" onClick={onAddRoom} className="host-cta">Add Your Room Now <ArrowRight size={16}/></button></section>; }
 
-function Footer({ openModal }: { openModal: (mode: ModalMode) => void }) { return <footer className="footer"><div className="section-container footer-main"><div className="footer-brand"><Logo/><p>Helping new beginnings<br/>find a place.</p></div><div className="footer-column"><b>Explore</b><a href="#explore">Find a place</a><a href="#neighbourhood">Neighbourhoods</a><a href="#how-it-works">How it works</a></div><div className="footer-column"><b>RoomMate</b><a href="#host">List your space</a><button onClick={() => openModal('register')}>Create account</button><a href="mailto:hello@roommate.example">Contact</a></div><div className="footer-note"><span>MADE FOR YOUR NEXT CHAPTER</span><p>New city. New keys.<br/><em>Same feeling of home.</em></p><span>✳</span></div></div><div className="section-container footer-bottom"><span>© 2026 RoomMate. A place to land.</span><span>Made with care in India <span className="footer-heart">♥</span></span></div></footer>; }
+function Footer({ openModal }: { openModal: (mode: ModalMode) => void }) { return <><section className="safety-support section-container" id="support"><div><div className="eyebrow">HELP WHEN YOU NEED IT</div><h2>Support & safety<span>.</span></h2><p>For an emergency in India, call 112. For a nearby police station, open the map search.</p></div><div className="safety-actions"><a className="safety-action sos-action" href="tel:112"><Phone size={19}/><span><b>SOS · Call 112</b><small>Emergency help in India</small></span></a><a className="safety-action" href="https://www.google.com/maps/search/police+station+near+me" target="_blank" rel="noreferrer"><MapPin size={19}/><span><b>Find a police station</b><small>Search nearby on Google Maps</small></span></a><a className="safety-action" href="mailto:roommate6200@gmail.com?subject=RoomMate%20Help%20Desk"><LifeBuoy size={19}/><span><b>RoomMate help desk</b><small>roommate6200@gmail.com</small></span></a></div></section><footer className="footer"><div className="section-container footer-main"><div className="footer-brand"><Logo/><p>Helping new beginnings<br/>find a place.</p></div><div className="footer-column"><b>Explore</b><a href="#explore">Find a place</a><a href="#neighbourhood">Neighbourhoods</a><a href="#how-it-works">How it works</a></div><div className="footer-column"><b>RoomMate</b><a href="#host">List your space</a><button onClick={() => openModal('register')}>Create account</button><a href="#support">Help desk & safety</a></div><div className="footer-note"><span>MADE FOR YOUR NEXT CHAPTER</span><p>New city. New keys.<br/><em>Same feeling of home.</em></p><span>✳</span></div></div><div className="section-container footer-bottom"><span>© 2026 RoomMate. A place to land.</span><span>Made with care in India <span className="footer-heart">♥</span></span></div></footer></>; }
 
 function AuthModal({ mode, onClose, onModeChange }: { mode: ModalMode; onClose: () => void; onModeChange: (mode: ModalMode) => void }) {
   const { setSession } = useAuth();
@@ -299,12 +308,13 @@ function AuthModal({ mode, onClose, onModeChange }: { mode: ModalMode; onClose: 
 
 function WelcomeStrip({ user }: { user: RoomMateUser }) { const { token, refreshUser } = useAuth(); const [message,setMessage] = useState(''); const [busy,setBusy] = useState(false); async function verify(){ if(!token)return;setBusy(true);setMessage('');try{const result=await api.startDigiLocker(token);window.location.assign(result.authorizationUrl);}catch(e){setMessage(e instanceof Error?e.message:'DigiLocker is not configured yet.');}finally{setBusy(false);}} return <div className="welcome-strip"><div><span className="welcome-kicker">GOOD TO HAVE YOU HERE</span><strong>Welcome, {user.fullName || user.username}.</strong><span className="welcome-sub">Your next chapter is looking good.</span></div><div className="verification-status"><span className={user.digilockerVerified?'status-ok':'status-pending'}><ShieldCheck size={15}/>{user.digilockerVerified?'Identity verified':'Identity pending'}</span><button disabled={busy || user.digilockerVerified} onClick={verify}>{busy?'Connecting…':user.digilockerVerified?'Verified':'Verify with DigiLocker'} <ArrowUpRight size={13}/></button>{message && <small>{message}</small>}</div></div>; }
 
-type RoomForm = { title: string; location: string; capacity: string; occupancy: string; privacy: 'Private' | 'Shared'; stayType: 'Monthly' | 'One day / One night'; rent: string; description: string; image360: string; latitude: string; longitude: string };
+type RoomForm = { title: string; location: string; capacity: string; occupancy: string; privacy: 'Private' | 'Shared'; stayType: 'Monthly' | 'One day / One night'; rent: string; description: string; images: string[]; latitude: string; longitude: string };
 
-function AddRoomForm({ onBack }: { onBack: () => void }) {
-  const { token } = useAuth();
-  const [form, setForm] = useState<RoomForm>({ title:'', location:'', capacity:'1', occupancy:'', privacy:'Private', stayType:'Monthly', rent:'', description:'', image360:'', latitude:'', longitude:'' });
+function AddRoomForm({ onBack, onSaved }: { onBack: () => void; onSaved?: (location: string, stayType: StayType) => void }) {
+  const { token, user } = useAuth();
+  const [form, setForm] = useState<RoomForm>({ title:'', location:'', capacity:'1', occupancy:'', privacy:'Private', stayType:'Monthly', rent:'', description:'', images:[], latitude:'', longitude:'' });
   const [saved, setSaved] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [cameraOpen, setCameraOpen] = useState(false);
@@ -321,12 +331,30 @@ function AddRoomForm({ onBack }: { onBack: () => void }) {
     );
   }
   useEffect(() => () => streamRef.current?.getTracks().forEach((track) => track.stop()), []);
-  function chooseImage(file?: File) {
-    if (!file) return;
-    if (!file.type.startsWith('image/')) return;
-    const reader = new FileReader();
-    reader.onload = () => update('image360', String(reader.result));
-    reader.readAsDataURL(file);
+  function addImage(dataUrl: string) {
+    setForm((current) => current.images.length >= 8 ? current : ({ ...current, images: [...current.images, dataUrl] }));
+  }
+  async function chooseImages(files: FileList | null) {
+    if (!files) return;
+    const remaining = Math.max(0, 8 - form.images.length);
+    const chosen = Array.from(files).filter((file) => file.type.startsWith('image/')).slice(0, remaining);
+    const optimized = await Promise.all(chosen.map((file) => new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('Could not read one of the selected images.'));
+      reader.onload = () => {
+        const source = new Image();
+        source.onerror = () => reject(new Error('One of the selected files is not a valid image.'));
+        source.onload = () => {
+          const scale = Math.min(1, 1600 / Math.max(source.width, source.height));
+          const canvas = document.createElement('canvas'); canvas.width = Math.round(source.width * scale); canvas.height = Math.round(source.height * scale);
+          canvas.getContext('2d')?.drawImage(source, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/jpeg', 0.78));
+        };
+        source.src = String(reader.result);
+      };
+      reader.readAsDataURL(file);
+    })));
+    setForm((current) => ({ ...current, images: [...current.images, ...optimized].slice(0, 8) }));
   }
   async function openCamera() {
     setCameraError('');
@@ -347,11 +375,12 @@ function AddRoomForm({ onBack }: { onBack: () => void }) {
     const canvas = document.createElement('canvas');
     canvas.width = video.videoWidth; canvas.height = video.videoHeight;
     canvas.getContext('2d')?.drawImage(video, 0, 0);
-    update('image360', canvas.toDataURL('image/jpeg', 0.9)); closeCamera();
+    addImage(canvas.toDataURL('image/jpeg', 0.82)); closeCamera();
   }
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (!token) { setError('Please log in before saving a room listing.'); return; }
+    if (!form.latitude || !form.longitude) { setError('Save the room GPS location before submitting so renters can find it in search.'); return; }
     setBusy(true); setError('');
     try {
       await api.createRoom(token, {
@@ -365,16 +394,17 @@ function AddRoomForm({ onBack }: { onBack: () => void }) {
         description: form.description,
         latitude: form.latitude ? Number(form.latitude) : undefined,
         longitude: form.longitude ? Number(form.longitude) : undefined,
-        imageUrl: form.image360 || undefined,
+        imageUrls: form.images,
       });
       setSaved(true);
+      setSubmitted(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save this room listing.');
     } finally { setBusy(false); }
   }
   return <><section className="workspace section-container"><button className="back-link" onClick={onBack}><ArrowRight size={16} className="back-arrow"/> Back to dashboard</button><div className="workspace-heading"><div><div className="eyebrow">LIST YOUR SPACE</div><h1>Add a room<span>.</span></h1><p>Share the details people need before choosing their next home.</p></div><div className="workspace-icon"><Plus size={27}/></div></div>
-    <form className="room-form" onSubmit={submit}><div className="room-form-main"><label>Room title<input required value={form.title} onChange={(e) => update('title', e.target.value)} placeholder="Bright room near the city centre"/></label><div className="form-row"><label>Location<input required value={form.location} onChange={(e) => update('location', e.target.value)} placeholder="Area, city"/></label><label>{form.stayType === 'Monthly' ? 'Monthly rent' : 'Price for one day / one night'}<input required type="number" min="0" value={form.rent} onChange={(e) => update('rent', e.target.value)} placeholder={form.stayType === 'Monthly' ? '₹ 8,000' : '₹ 500'}/></label></div>    <div className="location-status"><button type="button" className="auto-location-button" onClick={useListingLocation}><Compass size={16}/> {form.latitude ? 'GPS location saved' : 'Save room GPS location'}</button>{form.latitude && <small>{Number(form.latitude).toFixed(4)}, {Number(form.longitude).toFixed(4)}</small>}</div><fieldset><legend>Stay duration</legend><div className="choice-row"><label className={form.stayType === 'Monthly' ? 'choice selected' : 'choice'}><input type="radio" name="stayType" checked={form.stayType === 'Monthly'} onChange={() => update('stayType','Monthly')}/> Monthly stay</label><label className={form.stayType === 'One day / One night' ? 'choice selected' : 'choice'}><input type="radio" name="stayType" checked={form.stayType === 'One day / One night'} onChange={() => update('stayType','One day / One night')}/> One day / one night</label></div></fieldset><div className="form-row"><label>How many people can stay?<input required type="number" min="1" value={form.capacity} onChange={(e) => update('capacity', e.target.value)}/></label><label>People currently staying<input type="number" min="0" value={form.occupancy} onChange={(e) => update('occupancy', e.target.value)} placeholder="0"/></label></div><fieldset><legend>Room type</legend><div className="choice-row"><label className={form.privacy === 'Private' ? 'choice selected' : 'choice'}><input type="radio" name="privacy" checked={form.privacy === 'Private'} onChange={() => update('privacy','Private')}/> Private room</label><label className={form.privacy === 'Shared' ? 'choice selected' : 'choice'}><input type="radio" name="privacy" checked={form.privacy === 'Shared'} onChange={() => update('privacy','Shared')}/> Shared room</label></div></fieldset><label>Description<textarea required rows={4} value={form.description} onChange={(e) => update('description', e.target.value)} placeholder="Tell people about the room, amenities and house rules"/></label></div><div className="room-form-side">    <div className="upload-box"><Camera size={30}/><strong>360° room image</strong><span>Capture a live room image or upload a panoramic image.</span><div className="image-actions"><button type="button" className="camera-button" onClick={openCamera}><Camera size={16}/> Open camera</button><label className="upload-button">Upload image<input type="file" accept="image/*" onChange={(e) => chooseImage(e.target.files?.[0])}/></label></div>{form.image360 && <img src={form.image360} alt="Room preview"/>}{cameraError && <small className="camera-error">{cameraError}</small>}    </div>{error && <div className="form-error" role="alert">{error}</div>}<button className="auth-submit" disabled={busy} type="submit">{busy ? <LoaderCircle className="spin" size={17}/> : saved ? <Check size={17}/> : <Plus size={17}/>} {busy ? 'Saving…' : saved ? 'Room listing saved' : 'Save room listing'}</button></div></form>
-  </section>{cameraOpen && <div className="camera-modal" role="dialog" aria-modal="true" aria-label="Capture room image"><div className="camera-panel"><video ref={videoRef} autoPlay playsInline/><div className="camera-controls"><button type="button" onClick={captureImage}><Camera size={18}/> Capture image</button><button type="button" onClick={closeCamera}>Cancel</button></div></div></div>}</>;
+    <form className="room-form" onSubmit={submit}><div className="room-form-main"><label>Owner name<input readOnly value={user?.fullName || user?.username || ''}/></label><label>Room title<input required value={form.title} onChange={(e) => update('title', e.target.value)} placeholder="Bright room near the city centre"/></label><div className="form-row"><label>Location<input required value={form.location} onChange={(e) => update('location', e.target.value)} placeholder="Area, city"/></label><label>{form.stayType === 'Monthly' ? 'Monthly rent' : 'Price for one day / one night'}<input required type="number" min="0" value={form.rent} onChange={(e) => update('rent', e.target.value)} placeholder={form.stayType === 'Monthly' ? '₹ 8,000' : '₹ 500'}/></label></div>    <div className="location-status"><button type="button" className="auto-location-button" onClick={useListingLocation}><Compass size={16}/> {form.latitude ? 'GPS location saved' : 'Save room GPS location'}</button>{form.latitude && <small>{Number(form.latitude).toFixed(4)}, {Number(form.longitude).toFixed(4)}</small>}</div><fieldset><legend>Stay duration</legend><div className="choice-row"><label className={form.stayType === 'Monthly' ? 'choice selected' : 'choice'}><input type="radio" name="stayType" checked={form.stayType === 'Monthly'} onChange={() => update('stayType','Monthly')}/> Monthly stay</label><label className={form.stayType === 'One day / One night' ? 'choice selected' : 'choice'}><input type="radio" name="stayType" checked={form.stayType === 'One day / One night'} onChange={() => update('stayType','One day / One night')}/> One day / one night</label></div></fieldset><div className="form-row"><label>How many people can stay?<input required type="number" min="1" value={form.capacity} onChange={(e) => update('capacity', e.target.value)}/></label><label>People currently staying<input type="number" min="0" value={form.occupancy} onChange={(e) => update('occupancy', e.target.value)} placeholder="0"/></label></div><fieldset><legend>Room type</legend><div className="choice-row"><label className={form.privacy === 'Private' ? 'choice selected' : 'choice'}><input type="radio" name="privacy" checked={form.privacy === 'Private'} onChange={() => update('privacy','Private')}/> Private room</label><label className={form.privacy === 'Shared' ? 'choice selected' : 'choice'}><input type="radio" name="privacy" checked={form.privacy === 'Shared'} onChange={() => update('privacy','Shared')}/> Shared room</label></div></fieldset><label>Description<textarea required rows={4} value={form.description} onChange={(e) => update('description', e.target.value)} placeholder="Tell people about the room, amenities and house rules"/></label></div><div className="room-form-side"><div className="upload-box"><Camera size={30}/><strong>Room photos ({form.images.length}/8)</strong><span>Upload up to 8 clear room photos or take them with your camera.</span><div className="image-actions"><button type="button" className="camera-button" onClick={openCamera}><Camera size={16}/> Open camera</button><label className="upload-button">Add photos<input type="file" accept="image/*" multiple disabled={form.images.length >= 8} onChange={(e) => { void chooseImages(e.target.files).catch((err) => setError(err.message)); e.currentTarget.value = ''; }}/></label></div>{form.images.length > 0 && <div className="room-photo-preview">{form.images.map((photo, index) => <div key={`${index}-${photo.length}`}><img src={photo} alt={`Room photo ${index + 1}`}/><button type="button" aria-label={`Remove photo ${index + 1}`} onClick={() => setForm((current) => ({ ...current, images: current.images.filter((_, i) => i !== index) }))}><X size={14}/></button></div>)}</div>}{cameraError && <small className="camera-error">{cameraError}</small>}</div>{error && <div className="form-error" role="alert">{error}</div>}<button className="auth-submit" disabled={busy} type="submit">{busy ? <LoaderCircle className="spin" size={17}/> : saved ? <Check size={17}/> : <Plus size={17}/>} {busy ? 'Saving…' : saved ? 'Room listing saved' : 'Save room listing'}</button></div></form>
+  </section>{submitted && <div className="modal-backdrop" role="presentation"><section className="booking-modal room-submitted-modal" role="dialog" aria-modal="true" aria-labelledby="room-submitted-title"><div className="eyebrow">ROOM LISTED</div><h2 id="room-submitted-title">Your room was submitted<span>.</span></h2><p className="booking-room-title">{form.title}</p><p className="booking-note">Your listing is saved and can be found in nearby room search.</p><button className="auth-submit" type="button" onClick={() => onSaved?.(form.location, form.stayType === 'Monthly' ? 'Monthly stays' : 'Short stays')}>Search rooms <ArrowRight size={16}/></button><button className="submitted-close" type="button" onClick={() => { setSubmitted(false); onBack(); }}>Back to dashboard</button></section></div>}{cameraOpen && <div className="camera-modal" role="dialog" aria-modal="true" aria-label="Capture room image"><div className="camera-panel"><video ref={videoRef} autoPlay playsInline/><div className="camera-controls"><button type="button" onClick={captureImage}><Camera size={18}/> Capture image</button><button type="button" onClick={closeCamera}>Cancel</button></div></div></div>}</>;
 }
 
 function OwnerBookings() {
@@ -403,7 +433,7 @@ function Dashboard({ user }: { user: RoomMateUser }) {
   const [view, setView] = useState<'home' | 'search' | 'add'>('home');
   const [filters, setFilters] = useState<{ query: string; budget: string; room: string; stay: StayType } | null>(null);
   function search(query: string, budget: string, room: string, stay: StayType) { setFilters({ query, budget, room, stay }); setView('search'); }
-  if (view === 'add') return <AddRoomForm onBack={() => setView('home')}/>;
+  if (view === 'add') return <AddRoomForm onBack={() => setView('home')} onSaved={(query, stay) => { setFilters({ query, budget: 'Any budget', room: 'Any room', stay }); setView('search'); }}/>;
   if (view === 'search') return <main className="workspace section-container"><button className="back-link" onClick={() => setView('home')}><ArrowRight size={16} className="back-arrow"/> Back to dashboard</button><div className="workspace-heading"><div><div className="eyebrow">FIND YOUR NEXT HOME</div><h1>Search rooms<span>.</span></h1><p>Filter live listings by GPS distance, stay type, budget and room type.</p></div></div><SearchPanel onSearch={search}/><Listings filters={filters}/></main>;
   return <main className="dashboard section-container"><div className="dashboard-greeting"><div><div className="eyebrow">YOUR ROOMMATE SPACE</div><h1>Welcome, {user.fullName?.split(' ')[0] || user.username}<span>.</span></h1><p>What would you like to do today?</p></div><span className="dashboard-avatar">{user.fullName?.charAt(0)?.toUpperCase() || 'U'}</span></div><div className="dashboard-actions"><button className="dashboard-card search-card" onClick={() => setView('search')}><span className="dashboard-card-icon"><Search size={28}/></span><strong>Search room</strong><span>Find a private or shared room that fits your life.</span><b>Explore available rooms <ArrowRight size={18}/></b></button><button className="dashboard-card add-card" onClick={() => setView('add')}><span className="dashboard-card-icon"><Plus size={28}/></span><strong>Add room</strong><span>List your available room and help someone find home.</span><b>Create a room listing <ArrowRight size={18}/></b></button></div><OwnerBookings/><WelcomeStrip user={user}/></main>;
 }

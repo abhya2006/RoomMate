@@ -14,6 +14,7 @@ export type RoomListing = {
   id: number; title: string; location: string; capacity: number; occupancy: number;
   privacy: string; stayType: string; rent: number; description: string;
   imageUrl?: string; latitude?: number; longitude?: number; distanceKm?: number;
+  imageUrls?: string[];
   status: string; createdAt: string; ownerUsername: string; ownerFullName: string; ownerPhoneNumber?: string | null;
 };
 export type Booking = {

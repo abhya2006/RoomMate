@@ -43,6 +43,9 @@ public class RoomListing {
     @Lob
     @Column(name = "image_url", columnDefinition = "LONGTEXT")
     private String imageUrl;
+    @Lob
+    @Column(name = "image_urls", columnDefinition = "LONGTEXT")
+    private String imageUrls;
     @Column
     private Double latitude;
     @Column
@@ -85,6 +88,8 @@ public class RoomListing {
     public BigDecimal getRent() { return rent; }
     public String getDescription() { return description; }
     public String getImageUrl() { return imageUrl; }
+    public String getImageUrls() { return imageUrls; }
+    public void setImageUrls(String imageUrls) { this.imageUrls = imageUrls; }
     public Double getLatitude() { return latitude; }
     public Double getLongitude() { return longitude; }
     public String getStatus() { return status; }
