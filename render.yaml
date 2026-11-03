@@ -2,6 +2,7 @@ services:
   - type: web
     name: roommate-api
     runtime: docker
+    plan: free
     rootDir: backend
     healthCheckPath: /actuator/health
     envVars:
