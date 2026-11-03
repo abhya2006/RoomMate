@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
@@ -40,6 +41,7 @@ public class AuthService {
         this.aadhaarHashSecret = aadhaarHashSecret;
     }
 
+    @Transactional
     public ChallengeResponse register(RegisterRequest request) {
         String username = request.username().trim();
         String email = request.email().trim().toLowerCase(Locale.ROOT);
@@ -69,16 +71,12 @@ public class AuthService {
         return otpService.issue(user, "REGISTRATION");
     }
 
-    public ChallengeResponse login(LoginRequest request) {
+    public AuthResponse login(LoginRequest request) {
         String identifier = request.identifier().trim();
         User user = userRepository.findByUsernameIgnoreCaseOrEmailIgnoreCase(identifier, identifier)
                 .filter(candidate -> passwordEncoder.matches(request.password(), candidate.getPasswordHash()))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials"));
-        return otpService.issue(user, "LOGIN");
-    }
-
-    public AuthResponse verifyLogin(VerifyOtpRequest request) {
-        return responseFor(otpService.verify(request, "LOGIN"));
+        return responseFor(user);
     }
 
     public AuthResponse verifyRegistration(VerifyOtpRequest request) {

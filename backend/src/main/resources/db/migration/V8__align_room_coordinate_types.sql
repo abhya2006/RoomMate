@@ -1,0 +1,3 @@
+ALTER TABLE room_listings
+    MODIFY COLUMN latitude DOUBLE NULL,
+    MODIFY COLUMN longitude DOUBLE NULL;

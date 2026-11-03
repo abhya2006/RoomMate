@@ -11,7 +11,8 @@ React frontend in `../frontend/`.
 
 ## Local setup
 
-1. Copy `.env.example` to `.env` and set your local MySQL credentials. The `.env` file is ignored by Git.
+1. Copy `.env.example` to `.env` and set your local MySQL credentials. Spring
+   Boot imports this local file automatically; it is ignored by Git.
 2. Start the API:
 
    ```powershell
@@ -32,12 +33,16 @@ task from **Terminal > Run Task**.
 
 Flyway owns schema creation. Keep `spring.jpa.hibernate.ddl-auto=validate`; add a new `V<version>__<description>.sql` migration for every schema change.
 
+Room owners can save browser GPS coordinates with a listing. The public
+`GET /api/v1/rooms/nearby` endpoint then sorts coordinate-enabled listings by
+Haversine distance and can filter monthly or short stays.
+
 ## Authentication
 
 The Postman requests are at `../postman/RoomMate API/`. Import them into Postman,
 select the `RoomMate Local` environment, then run `Health`, `Register`, and the
-matching `Register verify OTP` request. Login similarly requires `Login` followed
-by `Login verify OTP`; only the verification response contains the JWT.
+matching `Register verify OTP` request. Login uses the username or email and
+password directly; it does not require an OTP.
 For the complete endpoint list, request bodies, auth requirements and expected
 status codes, see [`API_ENDPOINTS.md`](./API_ENDPOINTS.md).
 
@@ -58,6 +63,20 @@ Invoke-RestMethod -Method Post http://localhost:8080/api/v1/auth/login `
 ```
 
 The response contains a short-lived JWT bearer token. Use a strong random `JWT_SECRET` in every non-local environment; never commit it.
+
+For email OTP delivery, set `APP_OTP_DELIVERY_MODE=email` and configure
+`MAIL_HOST=smtp.gmail.com`, `MAIL_PORT=587`, `MAIL_USERNAME`,
+`MAIL_PASSWORD` (a Google App Password), and `MAIL_FROM` in the ignored
+`backend/.env` file. Email mode verifies the code delivered to the account email.
+To require both email and SMS codes, use `APP_OTP_DELIVERY_MODE=email-sms` and
+configure the MSG91 credentials. The API response tells the frontend whether a
+phone OTP is required. SMTP connections use STARTTLS and bounded timeouts.
+
+For local development without SMTP credentials, set
+`APP_OTP_DELIVERY_MODE=console` in `backend/.env`. This logs OTPs to the backend
+terminal and must only be used locally. The checked-in `.env.example` selects
+email mode; add real provider credentials before registering or requesting a
+password reset.
 
 Use the token on the protected current-user endpoint:
 

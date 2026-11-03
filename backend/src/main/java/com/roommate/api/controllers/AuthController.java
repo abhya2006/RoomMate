@@ -12,6 +12,7 @@ import com.roommate.api.dto.OtpDtos.VerifyOtpRequest;
 import com.roommate.api.services.AuthService;
 import com.roommate.api.services.PasswordResetService;
 import com.roommate.api.services.OtpService;
+import com.roommate.api.services.JwtService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -30,12 +32,14 @@ public class AuthController {
     private final AuthService authService;
     private final PasswordResetService passwordResetService;
     private final OtpService otpService;
+    private final JwtService jwtService;
 
     public AuthController(AuthService authService, PasswordResetService passwordResetService,
-            OtpService otpService) {
+            OtpService otpService, JwtService jwtService) {
         this.authService = authService;
         this.passwordResetService = passwordResetService;
         this.otpService = otpService;
+        this.jwtService = jwtService;
     }
 
     @PostMapping("/register")
@@ -45,7 +49,7 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ChallengeResponse login(@Valid @RequestBody LoginRequest request) {
+    public AuthResponse login(@Valid @RequestBody LoginRequest request) {
         return authService.login(request);
     }
 
@@ -54,14 +58,15 @@ public class AuthController {
         return authService.verifyRegistration(request);
     }
 
-    @PostMapping("/login/verify-otp")
-    public AuthResponse verifyLogin(@Valid @RequestBody VerifyOtpRequest request) {
-        return authService.verifyLogin(request);
-    }
-
     @GetMapping("/me")
     public AuthDtos.UserResponse me(@AuthenticationPrincipal UserDetails principal) {
         return authService.getUser(principal.getUsername());
+    }
+
+    @PostMapping("/logout")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void logout(@RequestHeader("Authorization") String authorization) {
+        jwtService.revoke(authorization.substring("Bearer ".length()));
     }
 
     @PostMapping("/forgot-password")

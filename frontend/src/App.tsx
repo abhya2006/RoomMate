@@ -3,15 +3,16 @@ import {
   ArrowDown, ArrowRight, ArrowUpRight, BadgeCheck, Bath, BedDouble, Building2,
   Check, ChevronDown, Compass, Heart, House, KeyRound, LoaderCircle, LockKeyhole,
   Mail, MapPin, Menu, Search, ShieldCheck, SlidersHorizontal, Sparkles, Users, Wifi, X,
-  Camera, Plus,
+  Camera, Plus, Sun, Moon, LogOut,
 } from 'lucide-react';
 import { api } from './lib/api';
-import type { RoomMateUser } from './lib/api';
+import type { Booking as ApiBooking, RoomListing, RoomMateUser } from './lib/api';
 import { useAuth } from './context/AuthContext';
 
 type StayType = 'Monthly stays' | 'Short stays';
 type ModalMode = 'login' | 'register' | 'forgot' | null;
-type Room = { id: number; title: string; area: string; detail: string; price: number; period: string; type: StayType; room: string; color: string; image: string; tag: string; rating: string };
+type Room = { id: number; title: string; area: string; detail: string; price: number; period: string; type: StayType; room: string; color: string; image: string; tag: string; rating: string; ownerName?: string; ownerContact?: string; latitude?: number; longitude?: number };
+type Booking = Room & { bookingId: number; bookingOtp?: string; status: ApiBooking['status']; bookedAt: string; renterName?: string; renterPhone?: string };
 
 const rooms: Room[] = [
   { id: 1, title: 'A sunny private room in a shared home', area: 'Kolar Road, Bhopal', detail: 'Furnished · Wi-Fi · Kitchen access', price: 7500, period: '/ month', type: 'Monthly stays', room: 'Private room', color: 'sand', image: 'photo-1522708323590-d24dbb6b0267', tag: 'Great for students', rating: '4.9' },
@@ -24,20 +25,39 @@ const rooms: Room[] = [
 
 function Logo() { return <a className="logo" href="#home" aria-label="RoomMate home"><House className="logo-house" size={35}/><span><b>Room</b><strong>Mate</strong><small>Find · Stay · Co-live</small></span></a>; }
 
-function Header({ openModal, onFindRoom, onAddRoom }: { openModal: (mode: ModalMode) => void; onFindRoom: () => void; onAddRoom: () => void }) {
+function Header({ openModal, onFindRoom, onAddRoom, theme, onToggleTheme }: { openModal: (mode: ModalMode) => void; onFindRoom: () => void; onAddRoom: () => void; theme: 'day' | 'night'; onToggleTheme: () => void }) {
   const { user, logout, loading } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const profileRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!profileOpen) return;
+    const closeOnOutsideClick = (event: MouseEvent) => {
+      if (!profileRef.current?.contains(event.target as Node)) setProfileOpen(false);
+    };
+    document.addEventListener('mousedown', closeOnOutsideClick);
+    return () => document.removeEventListener('mousedown', closeOnOutsideClick);
+  }, [profileOpen]);
   return <header className="header"><div className="header-inner">
     <Logo />
     <nav className={menuOpen ? 'nav nav-open' : 'nav'}><a className="nav-active" href="#home" onClick={() => setMenuOpen(false)}>Home</a><a href="#how-it-works" onClick={() => setMenuOpen(false)}>How it Works</a><a href="#pricing" onClick={() => setMenuOpen(false)}>Pricing</a><a href="#safety" onClick={() => setMenuOpen(false)}>Safety & Trust</a><a href="#support" onClick={() => setMenuOpen(false)}>Support</a></nav>
-    <div className="header-actions"><button className="host-link" type="button" onClick={onAddRoom}>＋ List Your Room</button>
-      {!loading && (user ? <div className="profile-menu"><span className="avatar">{user.fullName?.charAt(0)?.toUpperCase() || 'U'}</span><span className="profile-name">{user.fullName?.split(' ')[0] || user.username}</span><button className="icon-button" aria-label="Log out" onClick={logout}><KeyRound size={16}/></button></div> : <><button className="login-link" onClick={() => openModal('login')}>♙ &nbsp;Login</button><button className="signup-button" onClick={() => openModal('register')}>Sign Up</button></>)}
+    <div className="header-actions"><button className="theme-toggle" type="button" onClick={onToggleTheme} aria-label={`Switch to ${theme === 'day' ? 'night' : 'day'} mode`} title={`Switch to ${theme === 'day' ? 'night' : 'day'} mode`}>{theme === 'day' ? <Moon size={16}/> : <Sun size={16}/>}<span>{theme === 'day' ? 'Night' : 'Day'}</span></button><button className="host-link" type="button" onClick={onAddRoom}>＋ List Your Room</button>
+      {!loading && (user ? <div className="profile-menu" ref={profileRef}>
+        <button className="profile-trigger" type="button" aria-haspopup="menu" aria-expanded={profileOpen} onClick={() => setProfileOpen((open) => !open)}>
+          <span className="avatar">{user.fullName?.charAt(0)?.toUpperCase() || 'U'}</span><span className="profile-name">{user.fullName?.split(' ')[0] || user.username}</span><ChevronDown size={14}/>
+        </button>
+        {profileOpen && <div className="profile-dropdown" role="menu">
+          <div className="profile-summary"><span className="avatar profile-avatar-large">{user.fullName?.charAt(0)?.toUpperCase() || 'U'}</span><div><strong>{user.fullName || user.username}</strong><span>{user.email}</span></div></div>
+          <div className="profile-divider" />
+          <button className="profile-logout" type="button" role="menuitem" onClick={() => { setProfileOpen(false); logout(); }}><LogOut size={16}/> Log out</button>
+        </div>}
+      </div> : <><button className="login-link" onClick={() => openModal('login')}>♙ &nbsp;Login</button><button className="signup-button" onClick={() => openModal('register')}>Sign Up</button></>)}
       <button className="mobile-menu icon-button" aria-label="Toggle menu" onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X/> : <Menu/>}</button>
     </div>
   </div></header>;
 }
 
-function SearchPanel({ onSearch }: { onSearch: (query: string, budget: string, room: string) => void }) {
+function SearchPanel({ onSearch }: { onSearch: (query: string, budget: string, room: string, stay: StayType) => void }) {
   const [stay, setStay] = useState<StayType>('Monthly stays');
   const [query, setQuery] = useState('Bhopal');
   const [budget, setBudget] = useState('Any budget');
@@ -56,7 +76,7 @@ function SearchPanel({ onSearch }: { onSearch: (query: string, budget: string, r
   }
   return <div className="search-shell"><div className="search-tabs" role="tablist" aria-label="Stay type">
     {(['Monthly stays', 'Short stays'] as StayType[]).map((item) => <button key={item} type="button" role="tab" aria-selected={stay === item} className={stay === item ? 'search-tab selected' : 'search-tab'} onClick={() => { setStay(item); setBudget('Any budget'); }}>{item === 'Monthly stays' ? <House size={15}/> : <KeyRound size={15}/>} {item}</button>)}
-  </div><form className="search-panel" onSubmit={(e) => { e.preventDefault(); onSearch(query, budget, room); }}>
+  </div><form className="search-panel" onSubmit={(e) => { e.preventDefault(); onSearch(query, budget, room, stay); }}>
     <label className={`search-field location-field ${locationOpen ? 'location-open' : ''}`} onMouseEnter={() => setLocationOpen(true)} onMouseLeave={() => setLocationOpen(false)}><button type="button" className="location-trigger" aria-label="Open map location picker" onClick={() => setLocationOpen((open) => !open)}><MapPin className="field-icon" size={19}/></button><span className="field-content"><small>WHERE</small><input aria-label="City or locality" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="City or locality"/></span>{locationOpen && <div className="location-picker" onMouseEnter={() => setLocationOpen(true)}><div className="location-map-preview"><MapPin size={24}/><span>Choose your location</span></div><label>Enter city or locality<input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="e.g. Bhopal, MP Nagar"/></label><button type="button" className="manual-location-button" onClick={() => { setLocationStatus('Manual location selected.'); setLocationOpen(false); }}>Use this location <Check size={15}/></button><button type="button" className="auto-location-button" disabled={locationBusy} onClick={useCurrentLocation}><Compass size={16}/>{locationBusy ? 'Detecting…' : 'Use my current location'}</button>{locationStatus && <small className="location-status">{locationStatus}</small>}</div>}</label>
     <label className="search-field"><span className="rupee-icon">₹</span><span className="field-content"><small>{stay === 'Monthly stays' ? 'MONTHLY BUDGET' : 'NIGHTLY BUDGET · FROM ₹200'}</small><select aria-label="Budget" value={budget} onChange={(e) => setBudget(e.target.value)}><option>Any budget</option>{stay === 'Monthly stays' ? <><option>Under ₹5,000</option><option>₹5,000 – ₹8,000</option><option>₹8,000 – ₹12,000</option><option>₹12,000+</option></> : <><option>₹200 – ₹500</option><option>₹500 – ₹1,000</option><option>₹1,000 – ₹2,000</option><option>₹2,000+</option></>}</select></span><ChevronDown size={14} className="select-chevron"/></label>
     <label className="search-field"><BedDouble className="field-icon" size={19}/><span className="field-content"><small>ROOM TYPE</small><select aria-label="Room type" value={room} onChange={(e) => setRoom(e.target.value)}><option>Any room</option><option>Private room</option><option>Shared room</option><option>Studio</option><option>Entire place</option></select></span><ChevronDown size={14} className="select-chevron"/></label>
@@ -65,19 +85,77 @@ function SearchPanel({ onSearch }: { onSearch: (query: string, budget: string, r
   </div>;
 }
 
-function RoomCard({ room, saved, onSave }: { room: Room; saved: boolean; onSave: (id: number) => void }) {
+function RoomCard({ room, saved, onSave, onBook }: { room: Room; saved: boolean; onSave: (id: number) => void; onBook: (room: Room) => void }) {
   return <article className="room-card"><div className={`room-photo ${room.color}`} style={{ backgroundImage: `linear-gradient(180deg, rgba(20,30,24,.03), rgba(20,30,24,.08)), url(https://images.unsplash.com/${room.image}?auto=format&fit=crop&w=900&q=85)` }}>
     <span className="room-tag">{room.tag}</span><button className={saved ? 'save-button saved' : 'save-button'} type="button" aria-label={saved ? 'Remove saved home' : 'Save home'} onClick={() => onSave(room.id)}><Heart size={18} fill={saved ? 'currentColor' : 'none'}/></button><span className="photo-count">01 <i/> 04</span>
-  </div><div className="room-info"><div className="room-location"><MapPin size={12}/>{room.area}<span className="rating">★ {room.rating}</span></div><h3>{room.title}</h3><p>{room.detail}</p><div className="room-bottom"><div className="room-price"><strong>₹{room.price.toLocaleString('en-IN')}</strong><span>{room.period}</span></div><span className="reviewed"><BadgeCheck size={14}/> Sample listing</span></div></div></article>;
+  </div><div className="room-info"><div className="room-location"><MapPin size={12}/>{room.area}<span className="rating">★ {room.rating}</span></div><h3>{room.title}</h3><p>{room.detail}</p><div className="room-bottom"><div className="room-price"><strong>₹{room.price.toLocaleString('en-IN')}</strong><span>{room.period}</span></div><button className="book-button" type="button" onClick={() => onBook(room)}>Book now <ArrowRight size={14}/></button></div></div></article>;
 }
 
-function Listings({ filters, openModal }: { filters: { query: string; budget: string; room: string } | null; openModal: (mode: ModalMode) => void }) {
+function BookingModal({ booking, onClose }: { booking: Booking; onClose: () => void }) {
+  const mapUrl = booking.latitude && booking.longitude ? `https://www.google.com/maps/search/?api=1&query=${booking.latitude},${booking.longitude}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(booking.area)}`;
+  return <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><section className="booking-modal" role="dialog" aria-modal="true" aria-labelledby="booking-title"><button className="modal-close" type="button" onClick={onClose} aria-label="Close booking confirmation"><X size={18}/></button><div className="eyebrow">{booking.status === 'CONFIRMED' ? 'BOOKING CONFIRMED' : 'BOOKING REQUESTED'}</div><h2 id="booking-title">{booking.status === 'CONFIRMED' ? 'Your stay is confirmed' : 'Request sent to owner'}<span>.</span></h2><p className="booking-room-title">{booking.title}</p><div className="booking-details"><div><small>OWNER FULL NAME</small><strong>{booking.ownerName || 'RoomMate owner'}</strong></div><div><small>PHONE NUMBER</small><a className="booking-phone" href={`tel:${booking.ownerContact}`}>{booking.ownerContact || 'Contact unavailable'}</a></div><div><small>LOCATION</small><strong>{booking.area}</strong><a className="map-link" href={mapUrl} target="_blank" rel="noreferrer"><MapPin size={14}/> Open in Google Maps</a></div>{booking.bookingOtp && <div className="booking-otp"><small>BOOKING OTP</small><strong>{booking.bookingOtp}</strong></div>}</div><p className="booking-note">{booking.status === 'CONFIRMED' ? 'Owner verified your OTP. Payment gateway will be added later.' : 'Give this OTP to the owner. They will enter it from their account to confirm your booking.'}</p><button className="auth-submit" type="button" onClick={onClose}>Done</button></section></div>;
+}
+
+function BookingCard({ booking, onOpen }: { booking: Booking; onOpen: () => void }) {
+  return <article className="booking-card"><div><div className="eyebrow">MY BOOKING · {booking.status}</div><h3>{booking.title}</h3><p><MapPin size={14}/> {booking.area}</p><strong>{booking.ownerName} · {booking.ownerContact}</strong></div><button className="book-button" type="button" onClick={onOpen}>View booking <ArrowRight size={14}/></button></article>;
+}
+
+function Listings({ filters, onLoginRequired }: { filters: { query: string; budget: string; room: string; stay: StayType } | null; onLoginRequired?: () => void }) {
   const [saved, setSaved] = useState<number[]>([]);
-  const visible = useMemo(() => rooms.filter((r) => {
-    if (filters?.query && !`${r.area} ${r.title}`.toLowerCase().includes(filters.query.toLowerCase()) && !'bhopal'.includes(filters.query.toLowerCase())) return false;
-    if (filters?.room && filters.room !== 'Any room' && r.room !== filters.room) return false;
+  const [bookingRoom, setBookingRoom] = useState<Booking | null>(null);
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const { token } = useAuth();
+  const [nearby, setNearby] = useState<RoomListing[]>([]);
+  const [locationError, setLocationError] = useState('');
+  const [locationNotice, setLocationNotice] = useState('');
+  const [loading, setLoading] = useState(false);
+  const cityCoordinates: Record<string, [number, number]> = {
+    bhopal: [23.2599, 77.4126], delhi: [28.6139, 77.2090], noida: [28.5355, 77.3910],
+    mumbai: [19.0760, 72.8777], bengaluru: [12.9716, 77.5946], bangalore: [12.9716, 77.5946],
+    pune: [18.5204, 73.8567], indore: [22.7196, 75.8577], hyderabad: [17.3850, 78.4867],
+  };
+  useEffect(() => {
+    if (token) void api.myBookings(token).then((items) => setBookings(items.map(toBooking))).catch(() => undefined);
+  }, [token]);
+  useEffect(() => {
+    if (!filters) return;
+    const city = Object.keys(cityCoordinates).find((name) => filters.query.toLowerCase().includes(name));
+    if (city) {
+      const [latitude, longitude] = cityCoordinates[city];
+      setLoading(true); setLocationError('');
+      void api.nearbyRooms(latitude, longitude, filters.stay === 'Monthly stays' ? 'Monthly' : 'One day / One night')
+        .then(setNearby)
+        .then(() => setLocationNotice(`Showing rooms near ${city}.`))
+        .catch((error) => setLocationError(error instanceof Error ? error.message : 'Could not load nearby rooms.'))
+        .finally(() => setLoading(false));
+      return;
+    }
+    if (!navigator.geolocation) { setLocationError('GPS is not supported in this browser.'); return; }
+    setLoading(true); setLocationError('');
+    const loadNearby = async (latitude: number, longitude: number, notice = '') => {
+      try {
+        const stayType = filters.stay === 'Monthly stays' ? 'Monthly' : 'One day / One night';
+        setNearby(await api.nearbyRooms(latitude, longitude, stayType));
+        setLocationNotice(notice);
+      } catch (error) {
+        setLocationError(error instanceof Error ? error.message : 'Could not load nearby rooms.');
+      } finally { setLoading(false); }
+    };
+    navigator.geolocation.getCurrentPosition(({ coords }) => {
+      void loadNearby(coords.latitude, coords.longitude);
+    }, () => {
+      setLoading(false); setLocationError('Allow location access or enter a supported city to find nearby rooms.');
+    },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 });
+  }, [filters]);
+  const visible = useMemo(() => nearby.filter((r) => {
+    const searchedCity = filters?.query && Object.keys(cityCoordinates).some((name) => filters.query.toLowerCase().includes(name));
+    if (filters?.query && !searchedCity && !`${r.location} ${r.title}`.toLowerCase().includes(filters.query.toLowerCase())) return false;
+    if (filters?.room && filters.room !== 'Any room' &&
+      ((filters.room === 'Shared room' && r.privacy !== 'Shared') ||
+        (filters.room === 'Private room' && r.privacy !== 'Private'))) return false;
     if (filters?.budget && filters.budget !== 'Any budget') {
-      const amount = r.price; const b = filters.budget;
+      const amount = r.rent; const b = filters.budget;
       if (b === '₹200 – ₹500' && (amount < 200 || amount > 500)) return false;
       if (b === '₹500 – ₹1,000' && (amount < 500 || amount > 1000)) return false;
       if (b === '₹1,000 – ₹2,000' && (amount < 1000 || amount > 2000)) return false;
@@ -88,11 +166,33 @@ function Listings({ filters, openModal }: { filters: { query: string; budget: st
       if (b === '₹12,000+' && amount < 12000) return false;
     }
     return true;
-  }), [filters]);
-  return <section className="listings section-container" id="explore"><div className="section-heading"><div><div className="eyebrow">A GOOD PLACE TO BEGIN</div><h2>Places you might like<span className="heading-period">.</span></h2><p>Thoughtful spaces for wherever life is taking you.</p></div><a className="view-all" href="#explore">Explore all homes <ArrowRight size={16}/></a></div>
-    {filters && <div className="results-line"><span>{visible.length} places to explore</span><span>Filters applied <SlidersHorizontal size={13}/></span></div>}
-    {visible.length ? <div className="room-grid">{visible.map((r) => <RoomCard key={r.id} room={r} saved={saved.includes(r.id)} onSave={(id) => setSaved((s) => s.includes(id) ? s.filter((x) => x !== id) : [...s, id])}/>)}</div> : <div className="empty-results"><Compass size={26}/><h3>No places match those filters yet</h3><p>Try a wider budget or another room type.</p><button className="text-button" onClick={() => window.location.hash = 'explore'}>Clear your search <ArrowRight size={14}/></button></div>}
-    <p className="demo-disclaimer">Illustrative sample listings · Real listings and booking are not connected yet.</p>
+  }).map((r) => ({
+    id: r.id, title: r.title, area: r.location, detail: `${r.privacy} room · ${r.capacity} people · ${r.distanceKm?.toFixed(1) ?? '?'} km away`,
+    price: r.rent, period: r.stayType === 'Monthly' ? '/ month' : '/ night', type: filters?.stay || 'Monthly stays',
+    room: r.privacy === 'Shared' ? 'Shared room' : 'Private room', color: 'sage', image: 'photo-1522708323590-d24dbb6b0267',
+    ownerName: r.ownerFullName, ownerContact: r.ownerPhoneNumber, latitude: r.latitude, longitude: r.longitude,
+    tag: r.distanceKm !== undefined ? `${r.distanceKm.toFixed(1)} km away` : 'Nearby room', rating: 'New',
+  } as Room)), [nearby, filters]);
+  function toBooking(item: ApiBooking): Booking {
+    return { id: item.roomId, title: item.roomTitle, area: item.location, detail: `${item.status === 'CONFIRMED' ? 'Confirmed' : 'Awaiting owner confirmation'} · ₹${item.rent}`, price: item.rent, period: '/ stay', type: 'Monthly stays', room: 'Room', color: 'sage', image: 'photo-1522708323590-d24dbb6b0267', tag: item.status, rating: 'New', ownerName: item.ownerFullName, ownerContact: item.ownerPhoneNumber, latitude: item.latitude, longitude: item.longitude, bookingId: item.id, bookingOtp: item.bookingOtp, status: item.status, bookedAt: item.createdAt, renterName: item.renterFullName, renterPhone: item.renterPhoneNumber };
+  }
+  async function bookRoom(room: Room) {
+    if (!token) { onLoginRequired?.(); return; }
+    try {
+      const created = await api.createBooking(token, room.id);
+      const booking = toBooking(created);
+      setBookings((current) => [booking, ...current.filter((item) => item.bookingId !== booking.bookingId)]);
+      setBookingRoom(booking);
+    } catch (error) {
+      setLocationError(error instanceof Error ? error.message : 'Could not create booking.');
+    }
+  }
+  return <section className="listings section-container" id="explore">  {bookings.length > 0 && <div className="my-bookings"><div className="section-heading"><div><div className="eyebrow">YOUR TRIPS</div><h2>My bookings<span className="heading-period">.</span></h2></div></div>{bookings.map((booking) => <BookingCard key={booking.bookingId} booking={booking} onOpen={() => setBookingRoom(booking)}/>)}</div>}<div className="section-heading"><div><div className="eyebrow">A GOOD PLACE TO BEGIN</div><h2>Places you might like<span className="heading-period">.</span></h2><p>Thoughtful spaces for wherever life is taking you.</p></div><a className="view-all" href="#explore">Explore all homes <ArrowRight size={16}/></a></div>
+    {filters && <div className="results-line"><span>{loading ? 'Finding nearby rooms…' : `${visible.length} ${filters.stay.toLowerCase()} nearby`}</span><span>Sorted by distance <SlidersHorizontal size={13}/></span></div>}
+    {locationNotice && <div className="location-status"><Compass size={15}/><span>{locationNotice}</span></div>}
+    {locationError ? <div className="empty-results"><Compass size={26}/><h3>Location is needed</h3><p>{locationError}</p></div> : visible.length ? <div className="room-grid">{visible.map((r) => <RoomCard key={r.id} room={r} saved={saved.includes(r.id)} onSave={(id) => setSaved((s) => s.includes(id) ? s.filter((x) => x !== id) : [...s, id])} onBook={bookRoom}/>)}</div> : !loading && <div className="empty-results"><Compass size={26}/><h3>No nearby rooms found</h3><p>Try another stay type, location or budget.</p></div>}
+    <p className="demo-disclaimer">Live listings are sorted by your GPS distance. Room owners must save their listing location.</p>
+    {bookingRoom && <BookingModal booking={bookingRoom} onClose={() => setBookingRoom(null)}/>}
   </section>;
 }
 
@@ -117,6 +217,7 @@ function AuthModal({ mode, onClose, onModeChange }: { mode: ModalMode; onClose: 
   const [showPassword, setShowPassword] = useState(false);
   const [emailOtp, setEmailOtp] = useState('');
   const [phoneOtp, setPhoneOtp] = useState('');
+  const [phoneOtpRequired, setPhoneOtpRequired] = useState(true);
   const [challengeId, setChallengeId] = useState('');
   const [digiLockerStarted, setDigiLockerStarted] = useState(false);
   const [form, setForm] = useState({ identifier:'', password:'', username:'', email:'', fullName:'', phoneNumber:'', aadhaarNumber:'' });
@@ -140,7 +241,8 @@ function AuthModal({ mode, onClose, onModeChange }: { mode: ModalMode; onClose: 
         if (!challengeId) {
           const result = await api.forgotPassword(form.email.trim());
           setChallengeId(result.challengeId);
-          setError('OTP sent to your email and phone. Enter both OTPs and your new password.');
+          setPhoneOtpRequired(result.phoneOtpRequired);
+          setError(result.phoneOtpRequired ? 'OTP sent to your email and phone. Enter both codes and your new password.' : 'OTP sent to your email. Enter the code and your new password.');
           return;
         }
         await api.verifyForgotPassword(challengeId, emailOtp.trim(), phoneOtp.trim(), form.password);
@@ -148,18 +250,18 @@ function AuthModal({ mode, onClose, onModeChange }: { mode: ModalMode; onClose: 
         setChallengeId('');
         onModeChange('login');
       } else {
-        if (!challengeId) {
-          const result = mode === 'login'
-            ? await api.login(form.identifier.trim(), form.password)
-            : await api.register({ username: form.username.trim(), email: form.email.trim(), password: form.password, fullName: form.fullName.trim(), phoneNumber: form.phoneNumber.trim(), aadhaarNumber: form.aadhaarNumber.trim() });
+        if (mode === 'login') {
+          const result = await api.login(form.identifier.trim(), form.password);
+          setSession(result.token, result.user); onClose();
+        } else if (!challengeId) {
+          const result = await api.register({ username: form.username.trim(), email: form.email.trim(), password: form.password, fullName: form.fullName.trim(), phoneNumber: form.phoneNumber.trim(), aadhaarNumber: form.aadhaarNumber.trim() });
           setChallengeId(result.challengeId);
-          setError('OTP sent to your email and phone. Enter both OTPs to continue.');
-          return;
+          setPhoneOtpRequired(result.phoneOtpRequired);
+          setError(result.phoneOtpRequired ? 'OTP sent to your email and phone. Enter both codes to continue registration.' : 'OTP sent to your email. Enter the code to continue registration.');
+        } else {
+          const result = await api.verifyRegistrationOtp(challengeId, emailOtp.trim(), phoneOtp.trim());
+          setSession(result.token, result.user); onClose();
         }
-        const result = mode === 'login'
-          ? await api.verifyLoginOtp(challengeId, emailOtp.trim(), phoneOtp.trim())
-          : await api.verifyRegistrationOtp(challengeId, emailOtp.trim(), phoneOtp.trim());
-        setSession(result.token, result.user); onClose();
       }
     } catch (err) { setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.'); }
     finally { setBusy(false); }
@@ -174,9 +276,9 @@ function AuthModal({ mode, onClose, onModeChange }: { mode: ModalMode; onClose: 
         <label>Aadhaar number <span className="field-hint">12 digits · sent to your backend over the configured connection</span><input inputMode="numeric" required pattern="[0-9]{12}" maxLength={12} placeholder="XXXX XXXX XXXX" value={form.aadhaarNumber} onChange={(e) => update('aadhaarNumber',e.target.value.replace(/\D/g,'').slice(0,12))}/></label>
       </> : <label>Email or username<input autoComplete="username" required placeholder="Enter email or username" value={form.identifier} onChange={(e) => update('identifier',e.target.value)}/></label>}
       <label>{mode === 'forgot' ? 'New password' : 'Password'}<div className="password-wrap"><input type={showPassword ? 'text' : 'password'} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} minLength={8} maxLength={72} required placeholder="At least 8 characters" value={form.password} onChange={(e) => update('password',e.target.value)}/><button type="button" onClick={() => setShowPassword(!showPassword)}>{showPassword ? 'Hide' : 'Show'}</button></div></label>
-      {challengeId && <><label>Email OTP<input className="otp-input" inputMode="numeric" maxLength={6} required placeholder="6-digit email OTP" value={emailOtp} onChange={(e) => setEmailOtp(e.target.value.replace(/\D/g,'').slice(0,6))}/></label><label>Phone OTP<input className="otp-input" inputMode="numeric" maxLength={6} required placeholder="6-digit phone OTP" value={phoneOtp} onChange={(e) => setPhoneOtp(e.target.value.replace(/\D/g,'').slice(0,6))}/></label></>}
+      {challengeId && <><label>Email OTP<input className="otp-input" inputMode="numeric" maxLength={6} required placeholder="6-digit email OTP" value={emailOtp} onChange={(e) => setEmailOtp(e.target.value.replace(/\D/g,'').slice(0,6))}/></label>{phoneOtpRequired && <label>Phone OTP<input className="otp-input" inputMode="numeric" maxLength={6} required placeholder="6-digit phone OTP" value={phoneOtp} onChange={(e) => setPhoneOtp(e.target.value.replace(/\D/g,'').slice(0,6))}/></label>}</>}
       {error && <div className="form-error" role="alert">{error}</div>}
-      {mode === 'register' && <><label className="digilocker-check"><input type="checkbox" checked={digiLockerStarted} onChange={verifyDigiLocker} disabled={busy || digiLockerStarted}/><span><strong>Verify with DigiLocker</strong><small>Click to securely verify your identity</small></span><ShieldCheck size={19}/></label><p className="verification-summary"><span className={challengeId ? 'verified' : ''}>✉ Email + phone OTP {challengeId ? 'sent' : 'pending'}</span><span className={digiLockerStarted ? 'verified' : ''}>♢ DigiLocker {digiLockerStarted ? 'started' : 'pending'}</span></p><p className="privacy-note"><LockKeyhole size={13}/> Both OTPs are sent together after you submit your details.</p></>}
+      {mode === 'register' && <><label className="digilocker-check"><input type="checkbox" checked={digiLockerStarted} onChange={verifyDigiLocker} disabled={busy || digiLockerStarted}/><span><strong>Verify with DigiLocker</strong><small>Click to securely verify your identity</small></span><ShieldCheck size={19}/></label><p className="verification-summary"><span className={challengeId ? 'verified' : ''}>✉ {phoneOtpRequired ? 'Email + phone OTPs' : 'Email OTP'} {challengeId ? 'sent' : 'pending'}</span><span className={digiLockerStarted ? 'verified' : ''}>♢ DigiLocker {digiLockerStarted ? 'started' : 'pending'}</span></p><p className="privacy-note"><LockKeyhole size={13}/> {phoneOtpRequired ? 'Email and phone codes are sent after signup.' : 'A verification code is sent to your email after signup.'}</p></>}
       <button className="auth-submit" disabled={busy} type="submit">{busy ? <LoaderCircle className="spin" size={17}/> : null}{busy ? 'Please wait…' : mode === 'login' ? 'Log in to RoomMate' : mode === 'forgot' ? 'Send reset link' : 'Create my account'}{!busy && <ArrowRight size={17}/>}</button>
     </form><div className="auth-switch">{mode === 'login' ? <><button className="forgot-link" onClick={() => { setError(''); onModeChange('forgot'); }}>Forgot password?</button><span>New around here?</span><button onClick={() => { setError(''); onModeChange('register'); }}>Create an account</button></> : mode === 'forgot' ? <><span>Remembered your password?</span><button onClick={() => { setError(''); onModeChange('login'); }}>Log in</button></> : <>Already have an account? <button onClick={() => { setError(''); onModeChange('login'); }}>Log in</button></>}</div>
   </section></div>;
@@ -184,16 +286,27 @@ function AuthModal({ mode, onClose, onModeChange }: { mode: ModalMode; onClose: 
 
 function WelcomeStrip({ user }: { user: RoomMateUser }) { const { token, refreshUser } = useAuth(); const [message,setMessage] = useState(''); const [busy,setBusy] = useState(false); async function verify(){ if(!token)return;setBusy(true);setMessage('');try{const result=await api.startDigiLocker(token);window.location.assign(result.authorizationUrl);}catch(e){setMessage(e instanceof Error?e.message:'DigiLocker is not configured yet.');}finally{setBusy(false);}} return <div className="welcome-strip"><div><span className="welcome-kicker">GOOD TO HAVE YOU HERE</span><strong>Welcome, {user.fullName || user.username}.</strong><span className="welcome-sub">Your next chapter is looking good.</span></div><div className="verification-status"><span className={user.digilockerVerified?'status-ok':'status-pending'}><ShieldCheck size={15}/>{user.digilockerVerified?'Identity verified':'Identity pending'}</span><button disabled={busy || user.digilockerVerified} onClick={verify}>{busy?'Connecting…':user.digilockerVerified?'Verified':'Verify with DigiLocker'} <ArrowUpRight size={13}/></button>{message && <small>{message}</small>}</div></div>; }
 
-type RoomForm = { title: string; location: string; capacity: string; occupancy: string; privacy: 'Private' | 'Shared'; stayType: 'Monthly' | 'One day / One night'; rent: string; description: string; image360: string };
+type RoomForm = { title: string; location: string; capacity: string; occupancy: string; privacy: 'Private' | 'Shared'; stayType: 'Monthly' | 'One day / One night'; rent: string; description: string; image360: string; latitude: string; longitude: string };
 
 function AddRoomForm({ onBack }: { onBack: () => void }) {
-  const [form, setForm] = useState<RoomForm>({ title:'', location:'', capacity:'1', occupancy:'', privacy:'Private', stayType:'Monthly', rent:'', description:'', image360:'' });
+  const { token } = useAuth();
+  const [form, setForm] = useState<RoomForm>({ title:'', location:'', capacity:'1', occupancy:'', privacy:'Private', stayType:'Monthly', rent:'', description:'', image360:'', latitude:'', longitude:'' });
   const [saved, setSaved] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraError, setCameraError] = useState('');
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const update = (key: keyof RoomForm, value: string) => setForm((current) => ({ ...current, [key]: value }));
+  function useListingLocation() {
+    if (!navigator.geolocation) { setError('GPS is not supported in this browser.'); return; }
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => { update('latitude', String(coords.latitude)); update('longitude', String(coords.longitude)); setError('GPS location saved for nearest-room recommendations.'); },
+      () => setError('Location permission was denied. Allow GPS access to enable nearest-room recommendations.'),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 },
+    );
+  }
   useEffect(() => () => streamRef.current?.getTracks().forEach((track) => track.stop()), []);
   function chooseImage(file?: File) {
     if (!file) return;
@@ -223,37 +336,84 @@ function AddRoomForm({ onBack }: { onBack: () => void }) {
     canvas.getContext('2d')?.drawImage(video, 0, 0);
     update('image360', canvas.toDataURL('image/jpeg', 0.9)); closeCamera();
   }
-  function submit(e: FormEvent) {
+  async function submit(e: FormEvent) {
     e.preventDefault();
-    localStorage.setItem('roommate_room_draft', JSON.stringify(form));
-    setSaved(true);
+    if (!token) { setError('Please log in before saving a room listing.'); return; }
+    setBusy(true); setError('');
+    try {
+      await api.createRoom(token, {
+        title: form.title,
+        location: form.location,
+        capacity: Number(form.capacity),
+        occupancy: Number(form.occupancy || 0),
+        privacy: form.privacy,
+        stayType: form.stayType,
+        rent: Number(form.rent),
+        description: form.description,
+        latitude: form.latitude ? Number(form.latitude) : undefined,
+        longitude: form.longitude ? Number(form.longitude) : undefined,
+        imageUrl: form.image360 || undefined,
+      });
+      setSaved(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save this room listing.');
+    } finally { setBusy(false); }
   }
   return <><section className="workspace section-container"><button className="back-link" onClick={onBack}><ArrowRight size={16} className="back-arrow"/> Back to dashboard</button><div className="workspace-heading"><div><div className="eyebrow">LIST YOUR SPACE</div><h1>Add a room<span>.</span></h1><p>Share the details people need before choosing their next home.</p></div><div className="workspace-icon"><Plus size={27}/></div></div>
-    <form className="room-form" onSubmit={submit}><div className="room-form-main"><label>Room title<input required value={form.title} onChange={(e) => update('title', e.target.value)} placeholder="Bright room near the city centre"/></label><div className="form-row"><label>Location<input required value={form.location} onChange={(e) => update('location', e.target.value)} placeholder="Area, city"/></label><label>{form.stayType === 'Monthly' ? 'Monthly rent' : 'Price for one day / one night'}<input required type="number" min="0" value={form.rent} onChange={(e) => update('rent', e.target.value)} placeholder={form.stayType === 'Monthly' ? '₹ 8,000' : '₹ 500'}/></label></div><fieldset><legend>Stay duration</legend><div className="choice-row"><label className={form.stayType === 'Monthly' ? 'choice selected' : 'choice'}><input type="radio" name="stayType" checked={form.stayType === 'Monthly'} onChange={() => update('stayType','Monthly')}/> Monthly stay</label><label className={form.stayType === 'One day / One night' ? 'choice selected' : 'choice'}><input type="radio" name="stayType" checked={form.stayType === 'One day / One night'} onChange={() => update('stayType','One day / One night')}/> One day / one night</label></div></fieldset><div className="form-row"><label>How many people can stay?<input required type="number" min="1" value={form.capacity} onChange={(e) => update('capacity', e.target.value)}/></label><label>People currently staying<input type="number" min="0" value={form.occupancy} onChange={(e) => update('occupancy', e.target.value)} placeholder="0"/></label></div><fieldset><legend>Room type</legend><div className="choice-row"><label className={form.privacy === 'Private' ? 'choice selected' : 'choice'}><input type="radio" name="privacy" checked={form.privacy === 'Private'} onChange={() => update('privacy','Private')}/> Private room</label><label className={form.privacy === 'Shared' ? 'choice selected' : 'choice'}><input type="radio" name="privacy" checked={form.privacy === 'Shared'} onChange={() => update('privacy','Shared')}/> Shared room</label></div></fieldset><label>Description<textarea required rows={4} value={form.description} onChange={(e) => update('description', e.target.value)} placeholder="Tell people about the room, amenities and house rules"/></label></div><div className="room-form-side">    <div className="upload-box"><Camera size={30}/><strong>360° room image</strong><span>Capture a live room image or upload a panoramic image.</span><div className="image-actions"><button type="button" className="camera-button" onClick={openCamera}><Camera size={16}/> Open camera</button><label className="upload-button">Upload image<input type="file" accept="image/*" onChange={(e) => chooseImage(e.target.files?.[0])}/></label></div>{form.image360 && <img src={form.image360} alt="Room preview"/>}{cameraError && <small className="camera-error">{cameraError}</small>}</div><button className="auth-submit" type="submit">{saved ? <Check size={17}/> : <Plus size={17}/>} {saved ? 'Room saved as draft' : 'Save room listing'}</button></div></form>
+    <form className="room-form" onSubmit={submit}><div className="room-form-main"><label>Room title<input required value={form.title} onChange={(e) => update('title', e.target.value)} placeholder="Bright room near the city centre"/></label><div className="form-row"><label>Location<input required value={form.location} onChange={(e) => update('location', e.target.value)} placeholder="Area, city"/></label><label>{form.stayType === 'Monthly' ? 'Monthly rent' : 'Price for one day / one night'}<input required type="number" min="0" value={form.rent} onChange={(e) => update('rent', e.target.value)} placeholder={form.stayType === 'Monthly' ? '₹ 8,000' : '₹ 500'}/></label></div>    <div className="location-status"><button type="button" className="auto-location-button" onClick={useListingLocation}><Compass size={16}/> {form.latitude ? 'GPS location saved' : 'Save room GPS location'}</button>{form.latitude && <small>{Number(form.latitude).toFixed(4)}, {Number(form.longitude).toFixed(4)}</small>}</div><fieldset><legend>Stay duration</legend><div className="choice-row"><label className={form.stayType === 'Monthly' ? 'choice selected' : 'choice'}><input type="radio" name="stayType" checked={form.stayType === 'Monthly'} onChange={() => update('stayType','Monthly')}/> Monthly stay</label><label className={form.stayType === 'One day / One night' ? 'choice selected' : 'choice'}><input type="radio" name="stayType" checked={form.stayType === 'One day / One night'} onChange={() => update('stayType','One day / One night')}/> One day / one night</label></div></fieldset><div className="form-row"><label>How many people can stay?<input required type="number" min="1" value={form.capacity} onChange={(e) => update('capacity', e.target.value)}/></label><label>People currently staying<input type="number" min="0" value={form.occupancy} onChange={(e) => update('occupancy', e.target.value)} placeholder="0"/></label></div><fieldset><legend>Room type</legend><div className="choice-row"><label className={form.privacy === 'Private' ? 'choice selected' : 'choice'}><input type="radio" name="privacy" checked={form.privacy === 'Private'} onChange={() => update('privacy','Private')}/> Private room</label><label className={form.privacy === 'Shared' ? 'choice selected' : 'choice'}><input type="radio" name="privacy" checked={form.privacy === 'Shared'} onChange={() => update('privacy','Shared')}/> Shared room</label></div></fieldset><label>Description<textarea required rows={4} value={form.description} onChange={(e) => update('description', e.target.value)} placeholder="Tell people about the room, amenities and house rules"/></label></div><div className="room-form-side">    <div className="upload-box"><Camera size={30}/><strong>360° room image</strong><span>Capture a live room image or upload a panoramic image.</span><div className="image-actions"><button type="button" className="camera-button" onClick={openCamera}><Camera size={16}/> Open camera</button><label className="upload-button">Upload image<input type="file" accept="image/*" onChange={(e) => chooseImage(e.target.files?.[0])}/></label></div>{form.image360 && <img src={form.image360} alt="Room preview"/>}{cameraError && <small className="camera-error">{cameraError}</small>}    </div>{error && <div className="form-error" role="alert">{error}</div>}<button className="auth-submit" disabled={busy} type="submit">{busy ? <LoaderCircle className="spin" size={17}/> : saved ? <Check size={17}/> : <Plus size={17}/>} {busy ? 'Saving…' : saved ? 'Room listing saved' : 'Save room listing'}</button></div></form>
   </section>{cameraOpen && <div className="camera-modal" role="dialog" aria-modal="true" aria-label="Capture room image"><div className="camera-panel"><video ref={videoRef} autoPlay playsInline/><div className="camera-controls"><button type="button" onClick={captureImage}><Camera size={18}/> Capture image</button><button type="button" onClick={closeCamera}>Cancel</button></div></div></div>}</>;
+}
+
+function OwnerBookings() {
+  const { token } = useAuth();
+  const [bookings, setBookings] = useState<ApiBooking[]>([]);
+  const [otpById, setOtpById] = useState<Record<number, string>>({});
+  const [error, setError] = useState('');
+  useEffect(() => {
+    if (token) void api.ownerBookings(token).then(setBookings).catch((err) => setError(err instanceof Error ? err.message : 'Could not load booking requests.'));
+  }, [token]);
+  async function confirm(bookingId: number) {
+    if (!token) return;
+    try {
+      const updated = await api.confirmBooking(token, bookingId, otpById[bookingId] || '');
+      setBookings((items) => items.map((item) => item.id === bookingId ? updated : item));
+      setError('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not confirm booking.');
+    }
+  }
+  if (!bookings.length && !error) return null;
+  return <section className="owner-bookings"><div className="eyebrow">OWNER REQUESTS</div><h2>Booking requests<span>.</span></h2>{error && <div className="form-error">{error}</div>}{bookings.map((booking) => <article className="owner-booking-card" key={booking.id}><div><strong>{booking.roomTitle}</strong><span><MapPin size={13}/> {booking.location}</span><span>Renter: {booking.renterFullName} · {booking.renterPhoneNumber}</span></div><div className="owner-booking-action"><b>{booking.status}</b>{booking.status === 'REQUESTED' && <><input aria-label={`OTP for booking ${booking.id}`} value={otpById[booking.id] || ''} onChange={(event) => setOtpById((current) => ({ ...current, [booking.id]: event.target.value }))} placeholder="6-digit OTP" inputMode="numeric" maxLength={6}/><button className="book-button" type="button" onClick={() => void confirm(booking.id)}>Confirm OTP</button></>}</div></article>)}</section>;
 }
 
 function Dashboard({ user }: { user: RoomMateUser }) {
   const [view, setView] = useState<'home' | 'search' | 'add'>('home');
-  const [filters, setFilters] = useState<{ query: string; budget: string; room: string } | null>(null);
-  function search(query: string, budget: string, room: string) { setFilters({ query, budget, room }); setView('search'); }
+  const [filters, setFilters] = useState<{ query: string; budget: string; room: string; stay: StayType } | null>(null);
+  function search(query: string, budget: string, room: string, stay: StayType) { setFilters({ query, budget, room, stay }); setView('search'); }
   if (view === 'add') return <AddRoomForm onBack={() => setView('home')}/>;
-  if (view === 'search') return <main className="workspace section-container"><button className="back-link" onClick={() => setView('home')}><ArrowRight size={16} className="back-arrow"/> Back to dashboard</button><div className="workspace-heading"><div><div className="eyebrow">FIND YOUR NEXT HOME</div><h1>Search rooms<span>.</span></h1><p>Filter available spaces by location, budget and room type.</p></div></div><SearchPanel onSearch={search}/><Listings filters={filters} openModal={() => undefined}/></main>;
-  return <main className="dashboard section-container"><div className="dashboard-greeting"><div><div className="eyebrow">YOUR ROOMMATE SPACE</div><h1>Welcome, {user.fullName?.split(' ')[0] || user.username}<span>.</span></h1><p>What would you like to do today?</p></div><span className="dashboard-avatar">{user.fullName?.charAt(0)?.toUpperCase() || 'U'}</span></div><div className="dashboard-actions"><button className="dashboard-card search-card" onClick={() => setView('search')}><span className="dashboard-card-icon"><Search size={28}/></span><strong>Search room</strong><span>Find a private or shared room that fits your life.</span><b>Explore available rooms <ArrowRight size={18}/></b></button><button className="dashboard-card add-card" onClick={() => setView('add')}><span className="dashboard-card-icon"><Plus size={28}/></span><strong>Add room</strong><span>List your available room and help someone find home.</span><b>Create a room listing <ArrowRight size={18}/></b></button></div><WelcomeStrip user={user}/></main>;
+  if (view === 'search') return <main className="workspace section-container"><button className="back-link" onClick={() => setView('home')}><ArrowRight size={16} className="back-arrow"/> Back to dashboard</button><div className="workspace-heading"><div><div className="eyebrow">FIND YOUR NEXT HOME</div><h1>Search rooms<span>.</span></h1><p>Filter live listings by GPS distance, stay type, budget and room type.</p></div></div><SearchPanel onSearch={search}/><Listings filters={filters}/></main>;
+  return <main className="dashboard section-container"><div className="dashboard-greeting"><div><div className="eyebrow">YOUR ROOMMATE SPACE</div><h1>Welcome, {user.fullName?.split(' ')[0] || user.username}<span>.</span></h1><p>What would you like to do today?</p></div><span className="dashboard-avatar">{user.fullName?.charAt(0)?.toUpperCase() || 'U'}</span></div><div className="dashboard-actions"><button className="dashboard-card search-card" onClick={() => setView('search')}><span className="dashboard-card-icon"><Search size={28}/></span><strong>Search room</strong><span>Find a private or shared room that fits your life.</span><b>Explore available rooms <ArrowRight size={18}/></b></button><button className="dashboard-card add-card" onClick={() => setView('add')}><span className="dashboard-card-icon"><Plus size={28}/></span><strong>Add room</strong><span>List your available room and help someone find home.</span><b>Create a room listing <ArrowRight size={18}/></b></button></div><OwnerBookings/><WelcomeStrip user={user}/></main>;
 }
 
 export default function App() {
   const [modal, setModal] = useState<ModalMode>(null);
-  const [filters, setFilters] = useState<{ query: string; budget: string; room: string } | null>(null);
+  const [roomLightOn, setRoomLightOn] = useState(true);
+  const [theme, setTheme] = useState<'day' | 'night'>(() => localStorage.getItem('roommate-theme') === 'night' ? 'night' : 'day');
+  const [filters, setFilters] = useState<{ query: string; budget: string; room: string; stay: StayType } | null>({ query: 'Bhopal', budget: 'Any budget', room: 'Any room', stay: 'Monthly stays' });
   const [showAddRoom, setShowAddRoom] = useState(false);
   const { user } = useAuth();
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem('roommate-theme', theme);
+  }, [theme]);
+  function toggleTheme() { setTheme((current) => current === 'day' ? 'night' : 'day'); }
   function requireLogin(action: () => void) { if (user) action(); else setModal('login'); }
-  function handleSearch(query: string,budget:string,room:string){ requireLogin(() => { setFilters({query,budget,room}); document.getElementById('explore')?.scrollIntoView({behavior:'smooth'}); }); }
+  function handleSearch(query: string,budget:string,room:string,stay: StayType){ requireLogin(() => { setFilters({query,budget,room,stay}); document.getElementById('explore')?.scrollIntoView({behavior:'smooth'}); }); }
   function openAddRoom() { requireLogin(() => setShowAddRoom(true)); }
-  if (user) return <><Header openModal={setModal} onFindRoom={() => undefined} onAddRoom={openAddRoom}/><Dashboard user={user}/><Footer openModal={setModal}/></>;
-  return <><Header openModal={setModal} onFindRoom={() => setModal('login')} onAddRoom={() => setModal('login')}/>{showAddRoom ? <AddRoomForm onBack={() => setShowAddRoom(false)}/> : <main id="home"><section className="hero section-container"><div className="hero-content"><div className="hero-badge">♢ India's Student Stay Platform</div><h1>Find a Place to Stay,<br/>List Your Space &<br/>Get the Right <em>Roommate</em></h1><p>Verified rooms, lowest prices, trusted owners and compatible roommates — built for students & young professionals.</p><div className="hero-actions"><button className="hero-primary" onClick={() => setModal('login')}><Search size={20}/> Find a Room <ArrowRight size={17}/></button><button className="hero-secondary" onClick={() => setModal('login')}><Plus size={20}/> List Your Room <ArrowRight size={17}/></button></div><div className="hero-trust"><span>✓ Lowest Price</span><span>✓ Verified Listings</span><span>✓ Secure & Safe</span><span>✓ Student Friendly</span></div></div><div className="hero-visual"><div className="hero-photo"/><div className="hero-photo-overlay"/><div className="hero-script">Stay<br/>Share<br/>Save<br/>Together ♡</div></div></section>
+  if (user) return <><Header openModal={setModal} onFindRoom={() => undefined} onAddRoom={openAddRoom} theme={theme} onToggleTheme={toggleTheme}/><Dashboard user={user}/><Footer openModal={setModal}/></>;
+  return <><Header openModal={setModal} onFindRoom={() => setModal('login')} onAddRoom={() => setModal('login')} theme={theme} onToggleTheme={toggleTheme}/>{showAddRoom ? <AddRoomForm onBack={() => setShowAddRoom(false)}/> : <main id="home"><section className="hero section-container"><div className="hero-content"><div className="hero-badge">♢ India's Student Stay Platform</div><h1>Find a Place to Stay,<br/>List Your Space &<br/>Get the Right <em>Roommate</em></h1><p>Verified rooms, lowest prices, trusted owners and compatible roommates — built for students & young professionals.</p><div className="hero-actions"><button className="hero-primary" onClick={() => setModal('login')}><Search size={20}/> Find a Room <ArrowRight size={17}/></button><button className="hero-secondary" onClick={() => setModal('login')}><Plus size={20}/> List Your Room <ArrowRight size={17}/></button></div><div className="hero-trust"><span>✓ Lowest Price</span><span>✓ Verified Listings</span><span>✓ Secure & Safe</span><span>✓ Student Friendly</span></div></div><div className={roomLightOn ? 'hero-visual light-on' : 'hero-visual light-off'} aria-label="Interactive animated room preview"><div className="hero-3d-scene"><div className="hero-photo"/><div className="hero-photo-overlay"/><div className="hero-room-lamp"><span/></div><button className="hero-light-switch" type="button" onClick={() => setRoomLightOn((on) => !on)} aria-pressed={roomLightOn} aria-label={roomLightOn ? 'Turn room light off' : 'Turn room light on'}><span/><small>{roomLightOn ? 'LIGHT ON' : 'LIGHT OFF'}</small></button><div className="hero-3d-orb">RM</div><div className="hero-3d-card hero-3d-card-two"><span>★ 4.9</span><strong>Made for living</strong><small>Find your nearby fit</small></div></div><div className="hero-script">Stay<br/>Share<br/>Save<br/>Together ♡</div></div></section>
     <FeatureStrip/>
     <div className="section-container search-position"><SearchPanel onSearch={handleSearch}/></div>
     {user && <div className="section-container"><WelcomeStrip user={user}/></div>}
-    <Listings filters={filters} openModal={setModal}/><Neighbourhood/><HowItWorks/><TrustPanel/><HostBanner onAddRoom={() => setModal('login')}/></main>}<Footer openModal={setModal}/><AuthModal mode={modal} onClose={() => setModal(null)} onModeChange={setModal}/></>;
+    <Listings filters={filters} onLoginRequired={() => setModal('login')}/><Neighbourhood/><HowItWorks/><TrustPanel/><HostBanner onAddRoom={() => setModal('login')}/></main>}<Footer openModal={setModal}/><AuthModal mode={modal} onClose={() => setModal(null)} onModeChange={setModal}/></>;
 }

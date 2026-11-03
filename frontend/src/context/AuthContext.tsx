@@ -19,7 +19,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = useMemo<AuthContextValue>(() => ({
     user, token, loading,
     setSession: (nextToken, nextUser) => { localStorage.setItem('roommate_token', nextToken); setToken(nextToken); setUser(nextUser); setLoading(false); },
-    logout: () => { localStorage.removeItem('roommate_token'); setToken(null); setUser(null); },
+    logout: () => {
+      const currentToken = token;
+      localStorage.removeItem('roommate_token'); setToken(null); setUser(null);
+      if (currentToken) void api.logout(currentToken).catch(() => undefined);
+    },
     refreshUser: async () => { if (token) setUser(await api.me(token)); },
   }), [user, token, loading]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

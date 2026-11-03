@@ -1,0 +1,75 @@
+/* Small, compositor-friendly motion for the main RoomMate surfaces. */
+@keyframes rm-fade-up {
+  from { opacity: 0; transform: translate3d(0, 14px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes rm-soft-scale {
+  from { opacity: 0; transform: scale(.975); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.hero-content,
+.dashboard-greeting,
+.workspace-heading {
+  animation: rm-fade-up .55s cubic-bezier(.2, .7, .25, 1) both;
+}
+
+.hero-visual,
+.search-shell,
+.dashboard-actions,
+.room-form {
+  animation: rm-soft-scale .55s cubic-bezier(.2, .7, .25, 1) both;
+  animation-delay: 90ms;
+}
+
+.section-heading,
+.neighbour-copy,
+.how-title,
+.trust-panel,
+.host-banner {
+  animation: rm-fade-up .5s ease-out both;
+}
+
+.room-card,
+.step-card,
+.dashboard-card,
+.owner-booking-card,
+.booking-card {
+  animation: rm-fade-up .45s ease-out backwards;
+}
+
+.room-card:nth-child(2),
+.step-card:nth-child(2),
+.dashboard-card:nth-child(2) { animation-delay: 70ms; }
+.room-card:nth-child(3),
+.step-card:nth-child(3) { animation-delay: 140ms; }
+.room-card:nth-child(4) { animation-delay: 210ms; }
+.room-card:nth-child(5) { animation-delay: 280ms; }
+.room-card:nth-child(6) { animation-delay: 350ms; }
+
+.auth-modal,
+.booking-modal,
+.camera-panel {
+  animation: rm-soft-scale .2s ease-out both;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid #c17f5a;
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}

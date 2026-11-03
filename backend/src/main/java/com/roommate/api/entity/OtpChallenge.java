@@ -6,6 +6,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import java.time.Instant;
 import java.util.function.Function;
 
@@ -39,6 +40,10 @@ public class OtpChallenge {
     @Column(name = "verified_at")
     private Instant verifiedAt;
 
+    @Version
+    @Column(nullable = false)
+    private long version;
+
     protected OtpChallenge() {
     }
 
@@ -62,8 +67,10 @@ public class OtpChallenge {
 
     public boolean matches(String emailOtp, String phoneOtp,
             Function<String, String> emailHash, Function<String, String> phoneHash) {
-        return emailOtpHash.equals(emailHash.apply(emailOtp))
-                && phoneOtpHash.equals(phoneHash.apply(phoneOtp));
+        if (!emailOtpHash.equals(emailHash.apply(emailOtp))) return false;
+        return phoneOtp == null || phoneOtp.isBlank()
+                ? phoneOtpHash.equals(emailHash.apply(emailOtp))
+                : phoneOtpHash.equals(phoneHash.apply(phoneOtp));
     }
 
     public void incrementAttempts() { attempts++; }

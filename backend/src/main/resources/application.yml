@@ -1,4 +1,6 @@
 spring:
+  config:
+    import: optional:file:.env[.properties]
   application:
     name: roommate-api
   datasource:
@@ -24,6 +26,12 @@ spring:
     port: ${MAIL_PORT:587}
     username: ${MAIL_USERNAME:}
     password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          connectiontimeout: ${MAIL_CONNECTION_TIMEOUT:10000}
+          timeout: ${MAIL_TIMEOUT:10000}
+          writetimeout: ${MAIL_WRITE_TIMEOUT:10000}
 
 server:
   port: ${SERVER_PORT:8080}
@@ -43,6 +51,10 @@ management:
       show-details: never
 
 app:
+  mail:
+    from: ${MAIL_FROM:${MAIL_USERNAME:}}
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174}
   security:
     jwt-secret: ${JWT_SECRET:change-this-local-secret-to-a-random-32-character-value}
     jwt-expiration-seconds: ${JWT_EXPIRATION_SECONDS:86400}
@@ -56,6 +68,7 @@ app:
     expiration-minutes: ${PASSWORD_RESET_EXPIRATION_MINUTES:15}
   otp:
     expiry-seconds: ${OTP_EXPIRY_SECONDS:300}
+    delivery-mode: ${APP_OTP_DELIVERY_MODE:email}
   msg91:
     auth-key: ${MSG91_AUTH_KEY:}
     template-id: ${MSG91_TEMPLATE_ID:}
