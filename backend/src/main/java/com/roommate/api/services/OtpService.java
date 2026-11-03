@@ -113,7 +113,8 @@ public class OtpService {
         try {
             SimpleMailMessage message = new SimpleMailMessage();
             message.setTo(email);
-            if (!mailFrom.isBlank()) message.setFrom(mailFrom);
+            String sender = mailFrom.trim().replaceFirst("\\.$", "");
+            if (!sender.isBlank()) message.setFrom(sender);
             message.setSubject("REGISTRATION".equals(purpose)
                     ? "Verify your RoomMate account" : "Your RoomMate password reset code");
             message.setText("Your RoomMate verification code is " + otp + ".\n\n"
