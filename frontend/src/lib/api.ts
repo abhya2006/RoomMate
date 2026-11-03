@@ -1,4 +1,7 @@
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080').replace(/\/$/, '');
+const DEFAULT_API_BASE = import.meta.env.PROD
+  ? 'https://roommate-api-ihuf.onrender.com'
+  : 'http://localhost:8080';
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE).replace(/\/$/, '');
 
 export type RoomMateUser = {
   id: number; username: string; email: string; role: string; fullName: string;
