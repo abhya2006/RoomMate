@@ -9,6 +9,7 @@ import com.roommate.api.dto.PasswordResetDtos.ResetPasswordRequest;
 import com.roommate.api.dto.OtpDtos.ChallengeResponse;
 import com.roommate.api.dto.OtpDtos.VerifyForgotPasswordRequest;
 import com.roommate.api.dto.OtpDtos.VerifyOtpRequest;
+import com.roommate.api.dto.OtpDtos.ResendOtpRequest;
 import com.roommate.api.services.AuthService;
 import com.roommate.api.services.PasswordResetService;
 import com.roommate.api.services.OtpService;
@@ -56,6 +57,12 @@ public class AuthController {
     @PostMapping("/register/verify-otp")
     public AuthResponse verifyRegistration(@Valid @RequestBody VerifyOtpRequest request) {
         return authService.verifyRegistration(request);
+    }
+
+    @PostMapping("/register/resend-otp")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public ChallengeResponse resendRegistrationOtp(@Valid @RequestBody ResendOtpRequest request) {
+        return otpService.resendRegistrationOtp(request);
     }
 
     @GetMapping("/me")

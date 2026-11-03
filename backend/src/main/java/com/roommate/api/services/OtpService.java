@@ -1,6 +1,7 @@
 package com.roommate.api.services;
 
 import com.roommate.api.dto.OtpDtos.ChallengeResponse;
+import com.roommate.api.dto.OtpDtos.ResendOtpRequest;
 import com.roommate.api.dto.OtpDtos.VerifyForgotPasswordRequest;
 import com.roommate.api.dto.OtpDtos.VerifyOtpRequest;
 import com.roommate.api.entity.OtpChallenge;
@@ -85,6 +86,28 @@ public class OtpService {
                     "Unsupported OTP delivery mode");
         }
         return new ChallengeResponse(id, expirySeconds, "email-sms".equals(deliveryMode));
+    }
+
+    @Transactional
+    public ChallengeResponse resendRegistrationOtp(ResendOtpRequest request) {
+        OtpChallenge previous = repository.findByIdAndPurpose(request.challengeId(), "REGISTRATION")
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "OTP challenge is invalid or expired"));
+        User user = previous.getUser();
+        Instant now = Instant.now();
+        if (user.isEmailVerified()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "This account is already verified");
+        }
+        if (previous.isUsableAt(now)) {
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
+                    "Wait for the current OTP to expire before requesting another");
+        }
+        if (repository.existsByUser_IdAndPurposeAndExpiresAtAfter(
+                user.getId(), "REGISTRATION", previous.getExpiresAt())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "A newer OTP request already exists. Use the latest signup screen");
+        }
+        return issue(user, "REGISTRATION");
     }
 
     @Transactional(noRollbackFor = ResponseStatusException.class)

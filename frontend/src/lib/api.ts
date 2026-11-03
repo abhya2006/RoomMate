@@ -63,6 +63,8 @@ export const api = {
     request<AuthResponse>('/api/v1/auth/login', { method: 'POST', body: JSON.stringify({ identifier, password }) }),
   verifyRegistrationOtp: (challengeId: string, emailOtp: string, phoneOtp: string) =>
     request<AuthResponse>('/api/v1/auth/register/verify-otp', { method: 'POST', body: JSON.stringify({ challengeId, emailOtp, phoneOtp }) }),
+  resendRegistrationOtp: (challengeId: string) =>
+    request<OtpChallenge>('/api/v1/auth/register/resend-otp', { method: 'POST', body: JSON.stringify({ challengeId }) }),
   forgotPassword: (email: string) =>
     request<OtpChallenge>('/api/v1/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
   verifyForgotPassword: (challengeId: string, emailOtp: string, phoneOtp: string, newPassword: string) =>

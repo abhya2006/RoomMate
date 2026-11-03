@@ -60,6 +60,7 @@ public class OtpChallenge {
     public String getId() { return id; }
     public User getUser() { return user; }
     public String getPurpose() { return purpose; }
+    public Instant getExpiresAt() { return expiresAt; }
 
     public boolean isUsableAt(Instant now) {
         return verifiedAt == null && expiresAt.isAfter(now) && attempts < 5;

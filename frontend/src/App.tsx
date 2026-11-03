@@ -234,6 +234,18 @@ function AuthModal({ mode, onClose, onModeChange }: { mode: ModalMode; onClose: 
     } catch (err) { setError(err instanceof Error ? err.message : 'Could not start DigiLocker verification.'); }
     finally { setBusy(false); }
   }
+  async function resendRegistrationOtp() {
+    if (!challengeId) return;
+    setBusy(true); setError('');
+    try {
+      const result = await api.resendRegistrationOtp(challengeId);
+      setChallengeId(result.challengeId);
+      setPhoneOtpRequired(result.phoneOtpRequired);
+      setEmailOtp(''); setPhoneOtp('');
+      setError('A new OTP was sent to your email.');
+    } catch (err) { setError(err instanceof Error ? err.message : 'Could not resend the OTP.'); }
+    finally { setBusy(false); }
+  }
   async function submit(e: FormEvent) {
     e.preventDefault(); setBusy(true); setError('');
     try {
@@ -277,6 +289,7 @@ function AuthModal({ mode, onClose, onModeChange }: { mode: ModalMode; onClose: 
       </> : <label>Email or username<input autoComplete="username" required placeholder="Enter email or username" value={form.identifier} onChange={(e) => update('identifier',e.target.value)}/></label>}
       <label>{mode === 'forgot' ? 'New password' : 'Password'}<div className="password-wrap"><input type={showPassword ? 'text' : 'password'} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} minLength={8} maxLength={72} required placeholder="At least 8 characters" value={form.password} onChange={(e) => update('password',e.target.value)}/><button type="button" onClick={() => setShowPassword(!showPassword)}>{showPassword ? 'Hide' : 'Show'}</button></div></label>
       {challengeId && <><label>Email OTP<input className="otp-input" inputMode="numeric" maxLength={6} required placeholder="6-digit email OTP" value={emailOtp} onChange={(e) => setEmailOtp(e.target.value.replace(/\D/g,'').slice(0,6))}/></label>{phoneOtpRequired && <label>Phone OTP<input className="otp-input" inputMode="numeric" maxLength={6} required placeholder="6-digit phone OTP" value={phoneOtp} onChange={(e) => setPhoneOtp(e.target.value.replace(/\D/g,'').slice(0,6))}/></label>}</>}
+      {mode === 'register' && challengeId && <button className="forgot-link" type="button" disabled={busy} onClick={resendRegistrationOtp}>Resend OTP</button>}
       {error && <div className="form-error" role="alert">{error}</div>}
       {mode === 'register' && <><label className="digilocker-check"><input type="checkbox" checked={digiLockerStarted} onChange={verifyDigiLocker} disabled={busy || digiLockerStarted}/><span><strong>Verify with DigiLocker</strong><small>Click to securely verify your identity</small></span><ShieldCheck size={19}/></label><p className="verification-summary"><span className={challengeId ? 'verified' : ''}>✉ {phoneOtpRequired ? 'Email + phone OTPs' : 'Email OTP'} {challengeId ? 'sent' : 'pending'}</span><span className={digiLockerStarted ? 'verified' : ''}>♢ DigiLocker {digiLockerStarted ? 'started' : 'pending'}</span></p><p className="privacy-note"><LockKeyhole size={13}/> {phoneOtpRequired ? 'Email and phone codes are sent after signup.' : 'A verification code is sent to your email after signup.'}</p></>}
       <button className="auth-submit" disabled={busy} type="submit">{busy ? <LoaderCircle className="spin" size={17}/> : null}{busy ? 'Please wait…' : mode === 'login' ? 'Log in to RoomMate' : mode === 'forgot' ? 'Send reset link' : 'Create my account'}{!busy && <ArrowRight size={17}/>}</button>

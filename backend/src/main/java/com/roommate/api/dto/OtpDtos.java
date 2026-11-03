@@ -9,6 +9,8 @@ public final class OtpDtos {
 
     public record ChallengeResponse(String challengeId, long expiresInSeconds, boolean phoneOtpRequired) {}
 
+    public record ResendOtpRequest(@NotBlank String challengeId) {}
+
     public record VerifyOtpRequest(
             @NotBlank String challengeId,
             @NotBlank @Pattern(regexp = "^\\d{6}$") String emailOtp,

@@ -40,6 +40,7 @@ public class SecurityConfig {
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers(
                                 "/api/v1/auth/register",
+                                "/api/v1/auth/register/resend-otp",
                                 "/api/v1/auth/login",
                                 "/api/v1/auth/register/verify-otp",
                                 "/api/v1/auth/forgot-password",
