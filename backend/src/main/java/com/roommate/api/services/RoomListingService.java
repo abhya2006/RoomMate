@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Comparator;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +22,7 @@ public class RoomListingService {
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
 
+    @Autowired
     public RoomListingService(RoomListingRepository roomRepository, UserRepository userRepository,
             ObjectMapper objectMapper) {
         this.roomRepository = roomRepository;
