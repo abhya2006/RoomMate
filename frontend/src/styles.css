@@ -4,13 +4,136 @@
 @media(max-width:760px){.header{height:68px}.header-inner,.section-container{width:calc(100% - 38px)}.logo{font-size:19px}.nav{display:none;position:absolute;top:68px;left:0;right:0;height:auto;padding:10px 22px 18px;flex-direction:column;align-items:stretch;gap:0;border-bottom:1px solid var(--line);background:#fff;box-shadow:0 12px 22px #17231d0b}.nav.nav-open{display:flex}.nav a{height:42px}.nav a.nav-active:after{display:none}.header-actions{gap:9px}.host-link{font-size:10px}.outline-button{padding:8px 13px;font-size:10px}.mobile-menu{display:grid}.profile-name{display:none}.hero{min-height:0;grid-template-columns:1fr;gap:22px;padding-top:35px;padding-bottom:27px}.hero-content{padding:0}.hero h1{font-size:45px;letter-spacing:-2.7px;margin:17px 0 11px}.hero-content>p{font-size:12px}.hero-trust{margin-top:17px}.hero-visual{height:230px}.search-shell{padding:0 9px 11px}.search-tabs{height:41px}.search-panel{grid-template-columns:1fr 1fr;gap:0}.search-field{padding:11px 9px;gap:8px}.search-field:nth-child(2){border-right:0}.search-field:nth-child(3){border-top:1px solid var(--line)}.search-field:first-child{border-bottom:1px solid var(--line)}.search-submit{grid-column:1/-1;height:43px;margin:9px 0 0}.field-content input,.field-content select{font-size:10px}.search-meta{font-size:8px}.listings{padding-top:47px;padding-bottom:39px}.section-heading h2{font-size:23px}.section-heading p{font-size:9px}.view-all{font-size:9px;gap:4px}.room-grid{grid-template-columns:1fr 1fr;gap:12px}.room-photo{height:145px}.room-info{padding:10px}.room-info h3{font-size:11px;min-height:31px}.room-info>p{font-size:8px;line-height:1.4;min-height:23px}.room-location{font-size:8px}.room-price strong{font-size:14px}.reviewed{font-size:7px}.neighbourhood{grid-template-columns:1fr;gap:23px;padding-top:32px;padding-bottom:42px}.neighbour-copy h2{font-size:32px}.map-illustration{height:205px}.how-section{padding:42px 0}.center-heading h2{font-size:22px}.steps-grid{grid-template-columns:1fr;gap:10px;margin-top:24px}.step-card{min-height:0;padding:17px}.step-card h3{margin-top:12px}.host-banner{height:auto;min-height:130px;margin-top:36px;margin-bottom:39px;padding:20px;gap:12px}.host-emblem{width:39px;height:39px;flex-basis:39px}.host-copy h2{font-size:14px}.host-copy .eyebrow{font-size:7px}.host-cta{margin-left:51px;margin-top:-5px;padding:10px 12px;font-size:9px}.host-decoration{right:80px}.footer-main{grid-template-columns:1fr 1fr;gap:26px;padding-top:28px;padding-bottom:27px}.footer-brand{grid-column:1/-1}.footer-note{padding-left:13px}.footer-note p{font-size:15px}.footer-bottom{font-size:7px}.welcome-strip{align-items:flex-start;gap:12px;flex-direction:column}.verification-status{flex-wrap:wrap}.verification-status small{position:static}.auth-modal{padding:29px 22px 23px}.auth-modal h2{font-size:26px}.demo-disclaimer{text-align:left}}
 @media(max-width:390px){.header-inner,.section-container{width:calc(100% - 28px)}.host-link{font-size:9px}.hero h1{font-size:39px}.hero-trust{gap:11px}.hero-trust span{font-size:8px}.room-grid{gap:9px}.room-photo{height:125px}.room-info{padding:9px}.room-info h3{font-size:10px}.room-price{gap:2px}.room-price strong{font-size:12px}.reviewed{font-size:6px}.form-row{grid-template-columns:1fr}.auth-form{gap:11px}}
 
-/* Keep supporting text readable while preserving the existing heading scale. */
-body{font-size:18px}
-body :not(h1):not(h2):not(h3):not(h4):not(h5):not(h6):not(svg):not(path):not(.logo-symbol){font-size:max(18px, 1em)}
+/* Allow controls and text to keep their component sizes instead of forcing a
+   desktop-sized minimum onto every nested element. */
+body{font-size:16px}
 .header-inner{gap:24px}
 .nav{flex:1;justify-content:center}
 .header-actions{white-space:nowrap}
 @media (max-width:760px){.header-inner{gap:12px}.nav{flex:none}}
+
+/* Phone layouts */
+@media (max-width:760px){
+  html{scroll-padding-top:72px}
+  .header-inner,.section-container{width:calc(100% - 32px)}
+  .header-inner{gap:8px}
+  .logo>span{width:auto}
+  .nav.nav-open{display:flex;z-index:30;padding:8px 16px 14px}
+  .nav.nav-open a{display:flex;align-items:center;min-height:48px;padding:0 8px;font-size:15px}
+  .nav-mobile-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px 8px 2px;border-top:1px solid var(--line)}
+  .nav-mobile-actions button{min-height:46px;border:1px solid #d9c4bc;border-radius:8px;background:#fff8f1;color:var(--maroon);font-size:14px;font-weight:700}
+  .header-actions>.login-link,.header-actions>.signup-button{display:none}
+  .header-actions{gap:7px}
+  .host-link{min-height:42px;padding:0 7px;font-size:12px}
+  .mobile-menu{width:42px;height:42px;place-items:center;flex:0 0 42px}
+  .theme-toggle{width:42px;height:42px;justify-content:center;padding:0}
+  .hero{gap:18px;padding-top:26px}
+  .hero h1{font-size:clamp(36px,10vw,45px);line-height:1.08;letter-spacing:-2px}
+  .hero-content>p{font-size:15px;line-height:1.55}
+  .hero-trust{flex-wrap:wrap;gap:10px 16px}
+  .hero-trust span{font-size:12px}
+  .hero-visual{height:clamp(205px,60vw,290px);border-radius:14px}
+  .hero-light-switch{right:12px;bottom:12px}
+  .search-shell{padding:0 10px 12px}
+  .search-panel{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  .search-field{min-width:0;padding:12px 8px;gap:7px}
+  .field-content small{font-size:10px}
+  .field-content input,.field-content select{min-height:24px;font-size:16px}
+  .search-submit{min-height:46px;font-size:15px}
+  .search-meta{font-size:12px;line-height:1.4}
+  .listings{padding-top:36px}
+  .section-heading{align-items:flex-start;gap:12px}
+  .section-heading h2{font-size:clamp(22px,6vw,27px)}
+  .section-heading p{font-size:13px;line-height:1.4}
+  .view-all{font-size:12px;white-space:nowrap}
+  .room-grid{grid-template-columns:1fr;gap:15px}
+  .room-photo{height:clamp(190px,58vw,280px)}
+  .room-info{padding:14px}
+  .room-info h3{font-size:17px;min-height:0;line-height:1.35}
+  .room-info>p,.room-location{font-size:13px;line-height:1.4;min-height:0}
+  .room-bottom{flex-direction:row;align-items:center}
+  .room-price strong{font-size:19px}
+  .room-price>span{font-size:13px}
+  .book-button{min-height:44px;padding:10px 15px;font-size:14px}
+  .results-line{font-size:12px;gap:10px;line-height:1.4}
+  .demo-disclaimer{font-size:11px;line-height:1.5}
+  .feature-strip{gap:8px;padding:14px}
+  .feature-item{justify-content:flex-start;gap:8px}
+  .feature-item>span{font-size:24px}
+  .feature-item b,.feature-item small{font-size:12px;line-height:1.3}
+  .neighbour-copy>p,.step-card p{font-size:14px;line-height:1.55}
+  .map-illustration{height:clamp(190px,58vw,260px)}
+  .host-banner{border-radius:18px}
+  .host-copy h2{font-size:18px;line-height:1.35}
+  .host-copy p,.host-benefits span{font-size:13px;line-height:1.4}
+  .host-cta{min-height:44px;font-size:13px}
+  .footer-column>a,.footer-column>button,.footer-brand p{font-size:12px;line-height:1.5}
+  .footer-bottom{font-size:10px;gap:10px;flex-wrap:wrap}
+  .dashboard,.workspace{padding-top:28px;padding-bottom:40px;min-height:calc(100dvh - 68px)}
+  .dashboard-greeting,.workspace-heading{gap:12px;margin-bottom:24px}
+  .dashboard-greeting p,.workspace-heading p{font-size:14px;line-height:1.5}
+  .dashboard-actions{grid-template-columns:1fr;gap:12px;margin-bottom:24px}
+  .dashboard-card{min-height:190px;padding:22px;border-radius:16px}
+  .dashboard-card strong{font-size:22px}
+  .room-form{grid-template-columns:minmax(0,1fr);gap:20px}
+  .room-form label,.room-form legend{font-size:14px}
+  .room-form input,.room-form textarea{width:100%;min-height:48px;padding:12px;font-size:16px}
+  .room-form textarea{min-height:120px}
+  .form-row{grid-template-columns:minmax(0,1fr)}
+  .choice-row{flex-direction:column}
+  .choice{min-height:48px;font-size:14px}
+  .upload-box{min-height:230px;padding:18px}
+  .camera-button,.upload-button{min-height:44px;font-size:14px}
+  .auth-modal{width:min(100%,480px);max-height:calc(100dvh - 24px);padding:28px 20px 22px}
+  .auth-modal h2{font-size:26px}
+  .auth-form label{font-size:13px}
+  .auth-form input{height:48px;font-size:16px}
+  .auth-submit{min-height:48px;font-size:14px}
+  .booking-card{align-items:stretch;gap:13px;padding:16px;overflow-wrap:anywhere}
+  .booking-card h3{font-size:18px;line-height:1.35}
+  .booking-card p,.booking-card>div>strong{font-size:13px;line-height:1.45}
+  .booking-card-otp strong{font-size:24px}
+  .booking-modal{width:min(100%,470px);max-height:calc(100dvh - 24px);overflow:auto;padding:26px 18px 18px}
+  .booking-modal h2{font-size:26px}
+  .booking-details{grid-template-columns:minmax(0,1fr)}
+  .booking-details>div{padding:11px}
+  .booking-details strong,.booking-note{font-size:14px;line-height:1.5}
+  .booking-otp{grid-column:auto}
+  .owner-booking-card{align-items:stretch;padding:14px}
+  .owner-booking-action{justify-content:flex-start}
+  .owner-booking-action input{width:100%;min-height:46px;font-size:16px}
+  .owner-booking-action .book-button{width:100%;justify-content:center}
+  .verification-status{gap:8px}
+  .verification-status button{min-height:44px;font-size:12px}
+  .safety-action{min-height:64px}
+  .safety-action strong{font-size:15px}
+  .safety-action span{font-size:12px}
+}
+@media (max-width:420px){
+  .header-inner,.section-container{width:calc(100% - 24px)}
+  .logo{gap:5px}
+  .logo-house{width:27px;height:27px}
+  .logo>span{width:auto}
+  .logo b,.logo strong{font-size:17px}
+  .logo small{font-size:9px}
+  .host-link{display:none}
+  .header-actions{gap:5px}
+  .hero-stamp{width:62px;height:62px;right:12px;top:12px}
+  .hero-stamp strong{font-size:14px}
+  .hero-photo-label{left:10px;bottom:10px;padding:8px 10px}
+  .hero-photo-label b{font-size:12px}
+  .section-heading{flex-wrap:wrap}
+  .section-heading .view-all{margin-left:auto}
+  .feature-item{gap:6px}
+  .feature-item>span{font-size:20px}
+  .feature-item b,.feature-item small{font-size:11px}
+  .trust-panel{padding:18px}
+  .trust-stats{gap:8px}
+  .trust-stats span{padding-left:8px}
+  .trust-stats b{font-size:21px}
+  .trust-stats small{font-size:11px}
+  .footer-main{gap:20px 12px}
+}
 
 .room-photo{transition:transform .35s ease}
 .room-card:hover .room-photo{transform:scale(1.045)}
