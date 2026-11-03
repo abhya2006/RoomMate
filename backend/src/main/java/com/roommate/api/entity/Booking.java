@@ -29,6 +29,9 @@ public class Booking {
     @Column(name = "otp_hash", nullable = false, length = 100)
     private String otpHash;
 
+    @Column(name = "otp_encrypted", length = 255)
+    private String otpEncrypted;
+
     @Column(nullable = false, length = 20)
     private String status = "REQUESTED";
 
@@ -38,13 +41,21 @@ public class Booking {
     @Column
     private Instant confirmedAt;
 
+    @Column
+    private Instant renterArrivedAt;
+
     protected Booking() {}
 
-    public Booking(RoomListing room, User renter, String otpHash) {
+    public Booking(RoomListing room, User renter, String otpHash, String otpEncrypted) {
         this.room = room;
         this.renter = renter;
         this.otpHash = otpHash;
+        this.otpEncrypted = otpEncrypted;
         this.createdAt = Instant.now();
+    }
+
+    public void markRenterArrived() {
+        if (renterArrivedAt == null) renterArrivedAt = Instant.now();
     }
 
     public void confirm() {
@@ -59,4 +70,6 @@ public class Booking {
     public String getStatus() { return status; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getConfirmedAt() { return confirmedAt; }
+    public String getOtpEncrypted() { return otpEncrypted; }
+    public Instant getRenterArrivedAt() { return renterArrivedAt; }
 }

@@ -20,7 +20,7 @@ export type RoomListing = {
 export type Booking = {
   id: number; roomId: number; roomTitle: string; location: string; rent: number;
   status: 'REQUESTED' | 'CONFIRMED' | 'CANCELLED'; bookingOtp?: string;
-  createdAt: string; confirmedAt?: string; renterFullName: string; renterPhoneNumber: string;
+  createdAt: string; confirmedAt?: string; renterArrivedAt?: string; renterFullName: string; renterPhoneNumber: string;
   ownerFullName: string; ownerPhoneNumber: string; latitude?: number; longitude?: number;
 };
 type ApiErrorBody = { message?: string; fieldErrors?: { field: string; message: string }[] };
@@ -58,6 +58,8 @@ export const api = {
     request<Booking>('/api/v1/bookings', { method: 'POST', headers: authHeaders(token), body: JSON.stringify({ roomId }) }),
   myBookings: (token: string) => request<Booking[]>('/api/v1/bookings/mine', { headers: authHeaders(token) }),
   ownerBookings: (token: string) => request<Booking[]>('/api/v1/bookings/owner', { headers: authHeaders(token) }),
+  arriveBooking: (token: string, bookingId: number, latitude: number, longitude: number) =>
+    request<Booking>(`/api/v1/bookings/${bookingId}/arrive`, { method: 'POST', headers: authHeaders(token), body: JSON.stringify({ latitude, longitude }) }),
   confirmBooking: (token: string, bookingId: number, otp: string) =>
     request<Booking>(`/api/v1/bookings/${bookingId}/confirm`, { method: 'POST', headers: authHeaders(token), body: JSON.stringify({ otp }) }),
   register: (payload: { username: string; email: string; password: string; fullName: string; phoneNumber: string; aadhaarNumber: string }) =>

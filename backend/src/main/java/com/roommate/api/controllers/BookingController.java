@@ -3,6 +3,7 @@ package com.roommate.api.controllers;
 import com.roommate.api.dto.BookingDtos.BookingResponse;
 import com.roommate.api.dto.BookingDtos.ConfirmBookingRequest;
 import com.roommate.api.dto.BookingDtos.CreateBookingRequest;
+import com.roommate.api.dto.BookingDtos.ArriveBookingRequest;
 import com.roommate.api.services.BookingService;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -41,6 +42,12 @@ public class BookingController {
     @GetMapping("/owner")
     public List<BookingResponse> owner(@AuthenticationPrincipal UserDetails principal) {
         return service.forOwner(principal.getUsername());
+    }
+
+    @PostMapping("/{id}/arrive")
+    public BookingResponse arrive(@AuthenticationPrincipal UserDetails principal,
+            @PathVariable Long id, @Valid @RequestBody ArriveBookingRequest request) {
+        return service.arrive(principal.getUsername(), id, request.latitude(), request.longitude());
     }
 
     @PostMapping("/{id}/confirm")

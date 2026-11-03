@@ -12,7 +12,7 @@ import { useAuth } from './context/AuthContext';
 type StayType = 'Monthly stays' | 'Short stays';
 type ModalMode = 'login' | 'register' | 'forgot' | null;
 type Room = { id: number; title: string; area: string; detail: string; price: number; period: string; type: StayType; room: string; color: string; image: string; imageUrls?: string[]; tag: string; rating: string; ownerName?: string; ownerContact?: string; latitude?: number; longitude?: number };
-type Booking = Room & { bookingId: number; bookingOtp?: string; status: ApiBooking['status']; bookedAt: string; renterName?: string; renterPhone?: string };
+type Booking = Room & { bookingId: number; bookingOtp?: string; renterArrivedAt?: string; status: ApiBooking['status']; bookedAt: string; renterName?: string; renterPhone?: string };
 
 const rooms: Room[] = [
   { id: 1, title: 'A sunny private room in a shared home', area: 'Kolar Road, Bhopal', detail: 'Furnished · Wi-Fi · Kitchen access', price: 7500, period: '/ month', type: 'Monthly stays', room: 'Private room', color: 'sand', image: 'photo-1522708323590-d24dbb6b0267', tag: 'Great for students', rating: '4.9' },
@@ -95,17 +95,18 @@ function RoomCard({ room, saved, onSave, onBook }: { room: Room; saved: boolean;
 
 function BookingModal({ booking, onClose }: { booking: Booking; onClose: () => void }) {
   const mapUrl = booking.latitude && booking.longitude ? `https://www.google.com/maps/search/?api=1&query=${booking.latitude},${booking.longitude}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(booking.area)}`;
-  return <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><section className="booking-modal" role="dialog" aria-modal="true" aria-labelledby="booking-title"><button className="modal-close" type="button" onClick={onClose} aria-label="Close booking confirmation"><X size={18}/></button><div className="eyebrow">{booking.status === 'CONFIRMED' ? 'BOOKING CONFIRMED' : 'BOOKING REQUESTED'}</div><h2 id="booking-title">{booking.status === 'CONFIRMED' ? 'Your stay is confirmed' : 'Request sent to owner'}<span>.</span></h2><p className="booking-room-title">{booking.title}</p><div className="booking-details"><div><small>OWNER FULL NAME</small><strong>{booking.ownerName || 'RoomMate owner'}</strong></div><div><small>PHONE NUMBER</small><a className="booking-phone" href={`tel:${booking.ownerContact}`}>{booking.ownerContact || 'Contact unavailable'}</a></div><div><small>LOCATION</small><strong>{booking.area}</strong><a className="map-link" href={mapUrl} target="_blank" rel="noreferrer"><MapPin size={14}/> Open in Google Maps</a></div>{booking.bookingOtp && <div className="booking-otp"><small>BOOKING OTP</small><strong>{booking.bookingOtp}</strong></div>}</div><p className="booking-note">{booking.status === 'CONFIRMED' ? 'Owner verified your OTP. Payment gateway will be added later.' : 'Give this OTP to the owner. They will enter it from their account to confirm your booking.'}</p><button className="auth-submit" type="button" onClick={onClose}>Done</button></section></div>;
+  return <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><section className="booking-modal" role="dialog" aria-modal="true" aria-labelledby="booking-title"><button className="modal-close" type="button" onClick={onClose} aria-label="Close booking confirmation"><X size={18}/></button><div className="eyebrow">{booking.status === 'CONFIRMED' ? 'BOOKING CONFIRMED' : 'BOOKING REQUESTED'}</div><h2 id="booking-title">{booking.status === 'CONFIRMED' ? 'Your stay is confirmed' : 'Request sent to owner'}<span>.</span></h2><p className="booking-room-title">{booking.title}</p><div className="booking-details"><div><small>OWNER FULL NAME</small><strong>{booking.ownerName || 'RoomMate owner'}</strong></div><div><small>PHONE NUMBER</small><a className="booking-phone" href={`tel:${booking.ownerContact}`}>{booking.ownerContact || 'Contact unavailable'}</a></div><div><small>LOCATION</small><strong>{booking.area}</strong><a className="map-link" href={mapUrl} target="_blank" rel="noreferrer"><MapPin size={14}/> Open in Google Maps</a></div>{booking.bookingOtp && <div className="booking-otp"><small>BOOKING OTP</small><strong>{booking.bookingOtp}</strong></div>}</div><p className="booking-note">{booking.status === 'CONFIRMED' ? 'Owner verified your OTP. Payment gateway will be added later.' : booking.bookingOtp ? 'You have arrived. Share this OTP with the owner to confirm your booking.' : 'Your OTP stays hidden until you reach the room. Open My bookings and tap I have arrived to reveal it.'}</p><button className="auth-submit" type="button" onClick={onClose}>Done</button></section></div>;
 }
 
-function BookingCard({ booking, onOpen }: { booking: Booking; onOpen: () => void }) {
-  return <article className="booking-card"><div><div className="eyebrow">MY BOOKING · {booking.status}</div><h3>{booking.title}</h3><p><MapPin size={14}/> {booking.area}</p><strong>{booking.ownerName} · {booking.ownerContact}</strong></div><button className="book-button" type="button" onClick={onOpen}>View booking <ArrowRight size={14}/></button></article>;
+function BookingCard({ booking, onOpen, onArrive, arrivalBusy }: { booking: Booking; onOpen: () => void; onArrive: () => void; arrivalBusy: boolean }) {
+  return <article className="booking-card"><div><div className="eyebrow">MY BOOKING · {booking.status}</div><h3>{booking.title}</h3><p><MapPin size={14}/> {booking.area}</p><strong>{booking.ownerName} · {booking.ownerContact}</strong>{booking.bookingOtp ? <div className="booking-card-otp"><small>BOOKING OTP · SHARE THIS WITH THE OWNER</small><strong>{booking.bookingOtp}</strong></div> : booking.status === 'REQUESTED' && <div className="booking-reveal"><button className="book-button" type="button" disabled={arrivalBusy} onClick={onArrive}>{arrivalBusy ? <><LoaderCircle className="spin" size={15}/> Checking location…</> : <><MapPin size={14}/> I’ve arrived · reveal OTP</>}</button><small>OTP unlocks within 500 m of the room.</small></div>}</div><button className="book-button" type="button" onClick={onOpen}>View booking <ArrowRight size={14}/></button></article>;
 }
-
 function Listings({ filters, onLoginRequired }: { filters: { query: string; budget: string; room: string; stay: StayType } | null; onLoginRequired?: () => void }) {
   const [saved, setSaved] = useState<number[]>([]);
   const [bookingRoom, setBookingRoom] = useState<Booking | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [arrivalBusyId, setArrivalBusyId] = useState<number | null>(null);
+  const [arrivalError, setArrivalError] = useState('');
   const { token } = useAuth();
   const [nearby, setNearby] = useState<RoomListing[]>([]);
   const [locationError, setLocationError] = useState('');
@@ -189,7 +190,25 @@ function Listings({ filters, onLoginRequired }: { filters: { query: string; budg
     tag: r.distanceKm !== undefined ? `${r.distanceKm.toFixed(1)} km away` : 'Nearby room', rating: 'New',
   } as Room)), [nearby, filters]);
   function toBooking(item: ApiBooking): Booking {
-    return { id: item.roomId, title: item.roomTitle, area: item.location, detail: `${item.status === 'CONFIRMED' ? 'Confirmed' : 'Awaiting owner confirmation'} · ₹${item.rent}`, price: item.rent, period: '/ stay', type: 'Monthly stays', room: 'Room', color: 'sage', image: 'photo-1522708323590-d24dbb6b0267', tag: item.status, rating: 'New', ownerName: item.ownerFullName, ownerContact: item.ownerPhoneNumber, latitude: item.latitude, longitude: item.longitude, bookingId: item.id, bookingOtp: item.bookingOtp, status: item.status, bookedAt: item.createdAt, renterName: item.renterFullName, renterPhone: item.renterPhoneNumber };
+    return { id: item.roomId, title: item.roomTitle, area: item.location, detail: `${item.status === 'CONFIRMED' ? 'Confirmed' : 'Awaiting owner confirmation'} · ₹${item.rent}`, price: item.rent, period: '/ stay', type: 'Monthly stays', room: 'Room', color: 'sage', image: 'photo-1522708323590-d24dbb6b0267', tag: item.status, rating: 'New', ownerName: item.ownerFullName, ownerContact: item.ownerPhoneNumber, latitude: item.latitude, longitude: item.longitude, bookingId: item.id, bookingOtp: item.bookingOtp, renterArrivedAt: item.renterArrivedAt, status: item.status, bookedAt: item.createdAt, renterName: item.renterFullName, renterPhone: item.renterPhoneNumber };
+  }
+  async function revealBookingOtp(bookingId: number) {
+    if (!token) return;
+    setArrivalBusyId(bookingId); setArrivalError('');
+    try {
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        if (!navigator.geolocation) { reject(new Error('Location is not supported by this browser.')); return; }
+        navigator.geolocation.getCurrentPosition(resolve,
+          () => reject(new Error('Allow location access when you reach the room to reveal the OTP.')),
+          { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+      });
+      const result = await api.arriveBooking(token, bookingId, position.coords.latitude, position.coords.longitude);
+      const updated = toBooking(result);
+      setBookings((items) => items.map((item) => item.bookingId === bookingId ? updated : item));
+      setBookingRoom(updated);
+    } catch (error) {
+      setArrivalError(error instanceof Error ? error.message : 'Could not verify your location.');
+    } finally { setArrivalBusyId(null); }
   }
   async function bookRoom(room: Room) {
     if (!token) { onLoginRequired?.(); return; }
@@ -202,7 +221,7 @@ function Listings({ filters, onLoginRequired }: { filters: { query: string; budg
       setLocationError(error instanceof Error ? error.message : 'Could not create booking.');
     }
   }
-  return <section className="listings section-container" id="explore">  {bookings.length > 0 && <div className="my-bookings"><div className="section-heading"><div><div className="eyebrow">YOUR TRIPS</div><h2>My bookings<span className="heading-period">.</span></h2></div></div>{bookings.map((booking) => <BookingCard key={booking.bookingId} booking={booking} onOpen={() => setBookingRoom(booking)}/>)}</div>}<div className="section-heading"><div><div className="eyebrow">A GOOD PLACE TO BEGIN</div><h2>Places you might like<span className="heading-period">.</span></h2><p>Thoughtful spaces for wherever life is taking you.</p></div><a className="view-all" href="#explore">Explore all homes <ArrowRight size={16}/></a></div>
+  return <section className="listings section-container" id="explore">  {bookings.length > 0 && <div className="my-bookings"><div className="section-heading"><div><div className="eyebrow">YOUR TRIPS</div><h2>My bookings<span className="heading-period">.</span></h2></div></div>{arrivalError && <div className="form-error booking-arrival-error">{arrivalError}</div>}{bookings.map((booking) => <BookingCard key={booking.bookingId} booking={booking} onOpen={() => setBookingRoom(booking)} onArrive={() => void revealBookingOtp(booking.bookingId)} arrivalBusy={arrivalBusyId === booking.bookingId}/>)}</div>}<div className="section-heading"><div><div className="eyebrow">A GOOD PLACE TO BEGIN</div><h2>Places you might like<span className="heading-period">.</span></h2><p>Thoughtful spaces for wherever life is taking you.</p></div><a className="view-all" href="#explore">Explore all homes <ArrowRight size={16}/></a></div>
     {filters && <div className="results-line"><span>{loading ? 'Finding nearby rooms…' : `${visible.length} ${filters.stay.toLowerCase()} nearby`}</span><span>Sorted by distance <SlidersHorizontal size={13}/></span></div>}
     {locationNotice && <div className="location-status"><Compass size={15}/><span>{locationNotice}</span></div>}
     {locationError ? <div className="empty-results"><Compass size={26}/><h3>Location is needed</h3><p>{locationError}</p></div> : visible.length ? <div className="room-grid">{visible.map((r) => <RoomCard key={r.id} room={r} saved={saved.includes(r.id)} onSave={(id) => setSaved((s) => s.includes(id) ? s.filter((x) => x !== id) : [...s, id])} onBook={bookRoom}/>)}</div> : !loading && <div className="empty-results"><Compass size={26}/><h3>No nearby rooms found</h3><p>Try another stay type, location or budget.</p></div>}

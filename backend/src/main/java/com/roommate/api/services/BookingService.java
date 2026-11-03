@@ -20,14 +20,16 @@ public class BookingService {
     private final RoomListingRepository roomRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final BookingOtpCipher otpCipher;
     private final SecureRandom random = new SecureRandom();
 
     public BookingService(BookingRepository bookingRepository, RoomListingRepository roomRepository,
-            UserRepository userRepository, PasswordEncoder passwordEncoder) {
+            UserRepository userRepository, PasswordEncoder passwordEncoder, BookingOtpCipher otpCipher) {
         this.bookingRepository = bookingRepository;
         this.roomRepository = roomRepository;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.otpCipher = otpCipher;
     }
 
     @Transactional
@@ -52,20 +54,48 @@ public class BookingService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "You already have an active booking for this room");
         }
         String otp = String.format("%06d", random.nextInt(1_000_000));
-        var booking = bookingRepository.save(new Booking(room, renter, passwordEncoder.encode(otp)));
-        return BookingResponse.from(booking, otp);
+        var booking = bookingRepository.save(new Booking(room, renter,
+                passwordEncoder.encode(otp), otpCipher.encrypt(otp)));
+        return BookingResponse.from(booking, null);
     }
 
     @Transactional(readOnly = true)
     public List<BookingResponse> mine(String username) {
         return bookingRepository.findByRenterUsernameIgnoreCaseOrderByCreatedAtDesc(username)
-                .stream().map(booking -> BookingResponse.from(booking, null)).toList();
+                .stream().map(booking -> BookingResponse.from(booking, otpAfterArrival(booking))).toList();
     }
 
     @Transactional(readOnly = true)
     public List<BookingResponse> forOwner(String username) {
         return bookingRepository.findByRoomOwnerUsernameIgnoreCaseOrderByCreatedAtDesc(username)
                 .stream().map(booking -> BookingResponse.from(booking, null)).toList();
+    }
+
+    @Transactional
+    public BookingResponse arrive(String username, Long bookingId, double latitude, double longitude) {
+        var booking = bookingRepository.findByIdAndRenterUsernameIgnoreCase(bookingId, username)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Booking not found"));
+        if ("CANCELLED".equals(booking.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "This booking is no longer active");
+        }
+        if (booking.getOtpEncrypted() == null || booking.getOtpEncrypted().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "This older booking has no saved OTP. Create a new booking request to get an arrival OTP.");
+        }
+        if (booking.getRenterArrivedAt() == null) {
+            var room = booking.getRoom();
+            if (room.getLatitude() == null || room.getLongitude() == null) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "This room does not have a verified GPS location");
+            }
+            if (distanceKm(latitude, longitude, room.getLatitude(), room.getLongitude()) > 0.5) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                        "Move within 500 metres of the room to reveal the booking OTP");
+            }
+            booking.markRenterArrived();
+            booking = bookingRepository.save(booking);
+        }
+        return BookingResponse.from(booking, otpCipher.decrypt(booking.getOtpEncrypted()));
     }
 
     @Transactional
@@ -78,10 +108,29 @@ public class BookingService {
         if (!"REQUESTED".equals(booking.getStatus())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Booking is already processed");
         }
+        if (booking.getRenterArrivedAt() == null && booking.getOtpEncrypted() != null) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "The renter must arrive at the room before the OTP can confirm this booking");
+        }
         if (!passwordEncoder.matches(otp, booking.getOtpHash())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Incorrect booking OTP");
         }
         booking.confirm();
         return BookingResponse.from(bookingRepository.save(booking), null);
+    }
+
+    private String otpAfterArrival(com.roommate.api.entity.Booking booking) {
+        if (booking.getRenterArrivedAt() == null || booking.getOtpEncrypted() == null
+                || "CANCELLED".equals(booking.getStatus())) return null;
+        return otpCipher.decrypt(booking.getOtpEncrypted());
+    }
+
+    private static double distanceKm(double lat1, double lon1, double lat2, double lon2) {
+        double lat = Math.toRadians(lat2 - lat1);
+        double lon = Math.toRadians(lon2 - lon1);
+        double a = Math.sin(lat / 2) * Math.sin(lat / 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                * Math.sin(lon / 2) * Math.sin(lon / 2);
+        return 6371.0 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     }
 }
