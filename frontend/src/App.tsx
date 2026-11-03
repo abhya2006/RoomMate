@@ -42,7 +42,7 @@ function Header({ openModal, onFindRoom, onAddRoom, theme, onToggleTheme }: { op
     <Logo />
     <nav className={menuOpen ? 'nav nav-open' : 'nav'}><a className="nav-active" href="#home" onClick={() => setMenuOpen(false)}>Home</a><a href="#how-it-works" onClick={() => setMenuOpen(false)}>How it Works</a><a href="#pricing" onClick={() => setMenuOpen(false)}>Pricing</a><a href="#safety" onClick={() => setMenuOpen(false)}>Safety & Trust</a><a href="#support" onClick={() => setMenuOpen(false)}>Support</a></nav>
     <div className="header-actions"><button className="theme-toggle" type="button" onClick={onToggleTheme} aria-label={`Switch to ${theme === 'day' ? 'night' : 'day'} mode`} title={`Switch to ${theme === 'day' ? 'night' : 'day'} mode`}>{theme === 'day' ? <Moon size={16}/> : <Sun size={16}/>}<span>{theme === 'day' ? 'Night' : 'Day'}</span></button><button className="host-link" type="button" onClick={onAddRoom}>＋ List Your Room</button>
-      {!loading && (user ? <div className="profile-menu" ref={profileRef}>
+      {user ? <div className="profile-menu" ref={profileRef}>
         <button className="profile-trigger" type="button" aria-haspopup="menu" aria-expanded={profileOpen} onClick={() => setProfileOpen((open) => !open)}>
           <span className="avatar">{user.fullName?.charAt(0)?.toUpperCase() || 'U'}</span><span className="profile-name">{user.fullName?.split(' ')[0] || user.username}</span><ChevronDown size={14}/>
         </button>
@@ -51,7 +51,7 @@ function Header({ openModal, onFindRoom, onAddRoom, theme, onToggleTheme }: { op
           <div className="profile-divider" />
           <button className="profile-logout" type="button" role="menuitem" onClick={() => { setProfileOpen(false); logout(); }}><LogOut size={16}/> Log out</button>
         </div>}
-      </div> : <><button className="login-link" onClick={() => openModal('login')}>♙ &nbsp;Login</button><button className="signup-button" onClick={() => openModal('register')}>Sign Up</button></>)}
+      </div> : <><button className="login-link" disabled={loading} aria-busy={loading} onClick={() => openModal('login')}>♙ &nbsp;Login</button><button className="signup-button" disabled={loading} aria-busy={loading} onClick={() => openModal('register')}>Sign Up</button></>}
       <button className="mobile-menu icon-button" aria-label="Toggle menu" onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X/> : <Menu/>}</button>
     </div>
   </div></header>;
