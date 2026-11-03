@@ -8,6 +8,7 @@ import com.roommate.api.repository.RoomListingRepository;
 import com.roommate.api.repository.UserRepository;
 import java.security.SecureRandom;
 import java.util.List;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -23,6 +24,7 @@ public class BookingService {
     private final BookingOtpCipher otpCipher;
     private final SecureRandom random = new SecureRandom();
 
+    @Autowired
     public BookingService(BookingRepository bookingRepository, RoomListingRepository roomRepository,
             UserRepository userRepository, PasswordEncoder passwordEncoder, BookingOtpCipher otpCipher) {
         this.bookingRepository = bookingRepository;
@@ -30,6 +32,14 @@ public class BookingService {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.otpCipher = otpCipher;
+    }
+
+    /** Keeps direct construction in existing service tests independent of Spring wiring. */
+    @Deprecated(forRemoval = false)
+    public BookingService(BookingRepository bookingRepository, RoomListingRepository roomRepository,
+            UserRepository userRepository, PasswordEncoder passwordEncoder) {
+        this(bookingRepository, roomRepository, userRepository, passwordEncoder,
+                new BookingOtpCipher("test-only-booking-secret"));
     }
 
     @Transactional
