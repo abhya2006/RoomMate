@@ -14,10 +14,17 @@ SET full_name = username,
     aadhaar_last_four = '0000'
 WHERE full_name IS NULL;
 
+-- Keep column changes and unique-index creation in separate statements. TiDB
+-- rejects modifying a column and adding a constraint on that same column in
+-- one ALTER TABLE operation.
 ALTER TABLE users
     MODIFY full_name VARCHAR(120) NOT NULL,
     MODIFY phone_number VARCHAR(15) NOT NULL,
     MODIFY aadhaar_hash VARCHAR(64) NOT NULL,
-    MODIFY aadhaar_last_four VARCHAR(4) NOT NULL,
-    ADD CONSTRAINT uk_users_phone_number UNIQUE (phone_number),
+    MODIFY aadhaar_last_four VARCHAR(4) NOT NULL;
+
+ALTER TABLE users
+    ADD CONSTRAINT uk_users_phone_number UNIQUE (phone_number);
+
+ALTER TABLE users
     ADD CONSTRAINT uk_users_aadhaar_hash UNIQUE (aadhaar_hash);
