@@ -57,10 +57,12 @@ public class SecurityConfig {
     @Bean
     CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.stream(allowedOrigins.split(","))
+        java.util.List<String> origins = Arrays.stream(allowedOrigins.split(","))
                 .map(String::trim)
                 .filter(origin -> !origin.isBlank())
-                .toList());
+                .collect(java.util.stream.Collectors.toCollection(java.util.ArrayList::new));
+        origins.add("https://room-mate-gamma.vercel.app");
+        configuration.setAllowedOrigins(origins.stream().distinct().toList());
         configuration.setAllowedMethods(java.util.List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(java.util.List.of("Authorization", "Content-Type"));
         configuration.setAllowCredentials(false);
