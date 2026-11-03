@@ -121,7 +121,8 @@ public class OtpService {
                     + "If you did not request this code, you can ignore this email.");
             mailSender.send(message);
         } catch (RuntimeException exception) {
-            LOGGER.error("Email OTP delivery failed. Check the SMTP host, port, sender, and credentials.");
+            LOGGER.error("Email OTP delivery failed ({}): {}",
+                    exception.getClass().getSimpleName(), exception.getMessage(), exception);
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
                     "Email OTP delivery failed. Check the SMTP configuration.", exception);
         }
