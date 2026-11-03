@@ -52,6 +52,8 @@ export const api = {
   myRooms: (token: string) => request<RoomListing[]>('/api/v1/rooms/mine', { headers: authHeaders(token) }),
   nearbyRooms: (latitude: number, longitude: number, stayType?: string) =>
     request<RoomListing[]>(`/api/v1/rooms/nearby?latitude=${latitude}&longitude=${longitude}${stayType ? `&stayType=${encodeURIComponent(stayType)}` : ''}`),
+  searchRooms: (location: string, stayType: string) =>
+    request<RoomListing[]>(`/api/v1/rooms/search?location=${encodeURIComponent(location)}&stayType=${encodeURIComponent(stayType)}`),
   createBooking: (token: string, roomId: number) =>
     request<Booking>('/api/v1/bookings', { method: 'POST', headers: authHeaders(token), body: JSON.stringify({ roomId }) }),
   myBookings: (token: string) => request<Booking[]>('/api/v1/bookings/mine', { headers: authHeaders(token) }),

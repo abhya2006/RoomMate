@@ -7,4 +7,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface RoomListingRepository extends JpaRepository<RoomListing, Long> {
     List<RoomListing> findByOwnerUsernameIgnoreCaseOrderByCreatedAtDesc(String username);
     List<RoomListing> findByStatusAndLatitudeIsNotNullAndLongitudeIsNotNull(String status);
+    List<RoomListing> findByStatusAndLocationContainingIgnoreCaseAndStayTypeIgnoreCaseOrderByCreatedAtDesc(
+            String status, String location, String stayType);
 }

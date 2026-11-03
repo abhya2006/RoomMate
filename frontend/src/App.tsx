@@ -57,9 +57,9 @@ function Header({ openModal, onFindRoom, onAddRoom, theme, onToggleTheme }: { op
   </div></header>;
 }
 
-function SearchPanel({ onSearch }: { onSearch: (query: string, budget: string, room: string, stay: StayType) => void }) {
+function SearchPanel({ onSearch, initialQuery = 'Bhopal' }: { onSearch: (query: string, budget: string, room: string, stay: StayType) => void; initialQuery?: string }) {
   const [stay, setStay] = useState<StayType>('Monthly stays');
-  const [query, setQuery] = useState('Bhopal');
+  const [query, setQuery] = useState(initialQuery);
   const [budget, setBudget] = useState('Any budget');
   const [room, setRoom] = useState('Any room');
   const [locationOpen, setLocationOpen] = useState(false);
@@ -128,34 +128,40 @@ function Listings({ filters, onLoginRequired }: { filters: { query: string; budg
   }, [token]);
   useEffect(() => {
     if (!filters) return;
+    let active = true;
     const city = Object.keys(cityCoordinates).find((name) => filters.query.toLowerCase().includes(name));
-    if (city) {
-      const [latitude, longitude] = cityCoordinates[city];
-      setLoading(true); setLocationError('');
-      void api.nearbyRooms(latitude, longitude, filters.stay === 'Monthly stays' ? 'Monthly' : 'One day / One night')
-        .then(setNearby)
-        .then(() => setLocationNotice(`Showing rooms near ${city}.`))
-        .catch((error) => setLocationError(error instanceof Error ? error.message : 'Could not load nearby rooms.'))
-        .finally(() => setLoading(false));
-      return;
-    }
-    if (!navigator.geolocation) { setLocationError('GPS is not supported in this browser.'); return; }
-    setLoading(true); setLocationError('');
-    const loadNearby = async (latitude: number, longitude: number, notice = '') => {
+    const stayType = filters.stay === 'Monthly stays' ? 'Monthly' : 'One day / One night';
+    setLoading(true); setLocationError(''); setLocationNotice('');
+    const getGps = () => new Promise<GeolocationPosition>((resolve, reject) => {
+      if (!navigator.geolocation) { reject(new Error('GPS is not supported in this browser.')); return; }
+      navigator.geolocation.getCurrentPosition(resolve, () => reject(new Error('Allow location access or enter a supported city to find nearby rooms.')),
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 });
+    });
+    void (async () => {
       try {
-        const stayType = filters.stay === 'Monthly stays' ? 'Monthly' : 'One day / One night';
-        setNearby(await api.nearbyRooms(latitude, longitude, stayType));
-        setLocationNotice(notice);
+        const textMatches = filters.query.trim()
+          ? await api.searchRooms(filters.query, stayType)
+          : [];
+        if (!active) return;
+        if (textMatches.length) {
+          setNearby(textMatches);
+          setLocationNotice(`Showing ${textMatches.length} room${textMatches.length === 1 ? '' : 's'} matching ${filters.query}.`);
+          return;
+        }
+        let latitude: number; let longitude: number;
+        if (city) [latitude, longitude] = cityCoordinates[city];
+        else { const position = await getGps(); latitude = position.coords.latitude; longitude = position.coords.longitude; }
+        const nearbyRooms = await api.nearbyRooms(latitude, longitude, stayType);
+        if (!active) return;
+        setNearby(nearbyRooms);
+        setLocationNotice(city ? `Showing rooms near ${city}.` : 'Showing rooms near your location.');
       } catch (error) {
-        setLocationError(error instanceof Error ? error.message : 'Could not load nearby rooms.');
-      } finally { setLoading(false); }
-    };
-    navigator.geolocation.getCurrentPosition(({ coords }) => {
-      void loadNearby(coords.latitude, coords.longitude);
-    }, () => {
-      setLoading(false); setLocationError('Allow location access or enter a supported city to find nearby rooms.');
-    },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 });
+        if (active) setLocationError(error instanceof Error ? error.message : 'Could not load rooms.');
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => { active = false; };
   }, [filters]);
   const visible = useMemo(() => nearby.filter((r) => {
     const searchedCity = filters?.query && Object.keys(cityCoordinates).some((name) => filters.query.toLowerCase().includes(name));
@@ -429,13 +435,25 @@ function OwnerBookings() {
   return <section className="owner-bookings"><div className="eyebrow">OWNER REQUESTS</div><h2>Booking requests<span>.</span></h2>{error && <div className="form-error">{error}</div>}{bookings.map((booking) => <article className="owner-booking-card" key={booking.id}><div><strong>{booking.roomTitle}</strong><span><MapPin size={13}/> {booking.location}</span><span>Renter: {booking.renterFullName} · {booking.renterPhoneNumber}</span></div><div className="owner-booking-action"><b>{booking.status}</b>{booking.status === 'REQUESTED' && <><input aria-label={`OTP for booking ${booking.id}`} value={otpById[booking.id] || ''} onChange={(event) => setOtpById((current) => ({ ...current, [booking.id]: event.target.value }))} placeholder="6-digit OTP" inputMode="numeric" maxLength={6}/><button className="book-button" type="button" onClick={() => void confirm(booking.id)}>Confirm OTP</button></>}</div></article>)}</section>;
 }
 
+function MyRoomListings({ onSearch }: { onSearch: (location: string, stayType: StayType) => void }) {
+  const { token } = useAuth();
+  const [listings, setListings] = useState<RoomListing[]>([]);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    if (!token) return;
+    void api.myRooms(token).then(setListings).catch((err) => setError(err instanceof Error ? err.message : 'Could not load your rooms.'));
+  }, [token]);
+  if (!listings.length && !error) return null;
+  return <section className="my-room-listings"><div className="section-heading"><div><div className="eyebrow">YOUR LISTINGS</div><h2>Rooms you added<span className="heading-period">.</span></h2><p>Your saved rooms appear here and in matching search results.</p></div></div>{error && <div className="form-error">{error}</div>}<div className="my-room-list-grid">{listings.map((room) => <article className="my-room-list-card" key={room.id}><img src={room.imageUrls?.[0] || room.imageUrl || `https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=500&q=80`} alt={room.title}/><div className="my-room-list-copy"><span className="room-list-status">{room.status}</span><h3>{room.title}</h3><p><MapPin size={13}/>{room.location}</p><strong>₹{room.rent.toLocaleString('en-IN')} {room.stayType === 'Monthly' ? '/ month' : '/ night'}</strong><button className="text-button" type="button" onClick={() => onSearch(room.location, room.stayType === 'Monthly' ? 'Monthly stays' : 'Short stays')}>Show in search <ArrowRight size={14}/></button></div></article>)}</div></section>;
+}
+
 function Dashboard({ user }: { user: RoomMateUser }) {
   const [view, setView] = useState<'home' | 'search' | 'add'>('home');
   const [filters, setFilters] = useState<{ query: string; budget: string; room: string; stay: StayType } | null>(null);
   function search(query: string, budget: string, room: string, stay: StayType) { setFilters({ query, budget, room, stay }); setView('search'); }
   if (view === 'add') return <AddRoomForm onBack={() => setView('home')} onSaved={(query, stay) => { setFilters({ query, budget: 'Any budget', room: 'Any room', stay }); setView('search'); }}/>;
-  if (view === 'search') return <main className="workspace section-container"><button className="back-link" onClick={() => setView('home')}><ArrowRight size={16} className="back-arrow"/> Back to dashboard</button><div className="workspace-heading"><div><div className="eyebrow">FIND YOUR NEXT HOME</div><h1>Search rooms<span>.</span></h1><p>Filter live listings by GPS distance, stay type, budget and room type.</p></div></div><SearchPanel onSearch={search}/><Listings filters={filters}/></main>;
-  return <main className="dashboard section-container"><div className="dashboard-greeting"><div><div className="eyebrow">YOUR ROOMMATE SPACE</div><h1>Welcome, {user.fullName?.split(' ')[0] || user.username}<span>.</span></h1><p>What would you like to do today?</p></div><span className="dashboard-avatar">{user.fullName?.charAt(0)?.toUpperCase() || 'U'}</span></div><div className="dashboard-actions"><button className="dashboard-card search-card" onClick={() => setView('search')}><span className="dashboard-card-icon"><Search size={28}/></span><strong>Search room</strong><span>Find a private or shared room that fits your life.</span><b>Explore available rooms <ArrowRight size={18}/></b></button><button className="dashboard-card add-card" onClick={() => setView('add')}><span className="dashboard-card-icon"><Plus size={28}/></span><strong>Add room</strong><span>List your available room and help someone find home.</span><b>Create a room listing <ArrowRight size={18}/></b></button></div><OwnerBookings/><WelcomeStrip user={user}/></main>;
+  if (view === 'search') return <main className="workspace section-container"><button className="back-link" onClick={() => setView('home')}><ArrowRight size={16} className="back-arrow"/> Back to dashboard</button><div className="workspace-heading"><div><div className="eyebrow">FIND YOUR NEXT HOME</div><h1>Search rooms<span>.</span></h1><p>Filter live listings by location, stay type, budget and room type.</p></div></div><SearchPanel onSearch={search} initialQuery={filters?.query || 'Bhopal'}/><Listings filters={filters}/></main>;
+  return <main className="dashboard section-container"><div className="dashboard-greeting"><div><div className="eyebrow">YOUR ROOMMATE SPACE</div><h1>Welcome, {user.fullName?.split(' ')[0] || user.username}<span>.</span></h1><p>What would you like to do today?</p></div><span className="dashboard-avatar">{user.fullName?.charAt(0)?.toUpperCase() || 'U'}</span></div><div className="dashboard-actions"><button className="dashboard-card search-card" onClick={() => setView('search')}><span className="dashboard-card-icon"><Search size={28}/></span><strong>Search room</strong><span>Find a private or shared room that fits your life.</span><b>Explore available rooms <ArrowRight size={18}/></b></button><button className="dashboard-card add-card" onClick={() => setView('add')}><span className="dashboard-card-icon"><Plus size={28}/></span><strong>Add room</strong><span>List your available room and help someone find home.</span><b>Create a room listing <ArrowRight size={18}/></b></button></div><MyRoomListings onSearch={(location, stay) => search(location, 'Any budget', 'Any room', stay)}/><OwnerBookings/><WelcomeStrip user={user}/></main>;
 }
 
 export default function App() {

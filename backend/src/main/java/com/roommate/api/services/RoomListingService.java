@@ -73,6 +73,20 @@ public class RoomListingService {
     }
 
     @Transactional(readOnly = true)
+    public List<RoomResponse> search(String location, String stayType) {
+        if (location == null || location.isBlank() || stayType == null || stayType.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Enter a location and stay type to search rooms");
+        }
+        return roomRepository.findByStatusAndLocationContainingIgnoreCaseAndStayTypeIgnoreCaseOrderByCreatedAtDesc(
+                        "ACTIVE", location.trim(), stayType.trim())
+                .stream()
+                .filter(room -> room.getOccupancy() < room.getCapacity())
+                .map(room -> publicResponse(room, null))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public List<RoomResponse> findNearby(double latitude, double longitude, String stayType, int limit) {
         if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid GPS coordinates");
@@ -89,15 +103,18 @@ public class RoomListingService {
                 .sorted(Comparator.comparingDouble(Nearby::distanceKm))
                 .limit(safeLimit)
                 .map(item -> {
-                    RoomResponse response = RoomResponse.from(item.room(), objectMapper);
-                    return new RoomResponse(response.id(), response.title(), response.location(),
-                            response.capacity(), response.occupancy(), response.privacy(),
-                            response.stayType(), response.rent(), response.description(),
-                            response.imageUrl(), response.imageUrls(), response.latitude(), response.longitude(),
-                            item.distanceKm(), response.status(), response.createdAt(),
-                            response.ownerUsername(), response.ownerFullName(), null);
+                    return publicResponse(item.room(), item.distanceKm());
                 })
                 .toList();
+    }
+
+    private RoomResponse publicResponse(RoomListing room, Double distanceKm) {
+        RoomResponse response = RoomResponse.from(room, objectMapper);
+        return new RoomResponse(response.id(), response.title(), response.location(),
+                response.capacity(), response.occupancy(), response.privacy(), response.stayType(),
+                response.rent(), response.description(), response.imageUrl(), response.imageUrls(),
+                response.latitude(), response.longitude(), distanceKm, response.status(),
+                response.createdAt(), response.ownerUsername(), response.ownerFullName(), null);
     }
 
     private static double distanceKm(double lat1, double lon1, double lat2, double lon2) {

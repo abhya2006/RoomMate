@@ -45,4 +45,11 @@ public class RoomListingController {
             @RequestParam(defaultValue = "20") int limit) {
         return service.findNearby(latitude, longitude, stayType, limit);
     }
+
+    @GetMapping("/search")
+    public List<RoomResponse> search(
+            @RequestParam String location,
+            @RequestParam String stayType) {
+        return service.search(location, stayType);
+    }
 }

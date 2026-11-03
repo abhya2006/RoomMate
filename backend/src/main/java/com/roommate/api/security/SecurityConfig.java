@@ -48,6 +48,7 @@ public class SecurityConfig {
                                 "/api/v1/auth/forgot-password/verify-otp",
                                 "/api/v1/auth/reset-password",
                                 "/api/v1/rooms/nearby",
+                                "/api/v1/rooms/search",
                                 "/api/v1/health",
                                 "/actuator/health/**").permitAll()
                         .anyRequest().authenticated())
