@@ -4,7 +4,7 @@ spring:
   application:
     name: roommate-api
   datasource:
-    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${MYSQL_DATABASE:roommate}?createDatabaseIfNotExist=true&serverTimezone=UTC
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${MYSQL_DATABASE:roommate}?createDatabaseIfNotExist=true&serverTimezone=UTC&sslMode=${DB_SSL_MODE:PREFERRED}
     username: ${MYSQL_USER:rool}
     password: ${MYSQL_PASSWORD:}
     hikari:

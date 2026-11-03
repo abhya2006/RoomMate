@@ -11,7 +11,9 @@ services:
       - key: DB_HOST
         sync: false
       - key: DB_PORT
-        value: 3306
+        sync: false
+      - key: DB_SSL_MODE
+        value: VERIFY_IDENTITY
       - key: MYSQL_DATABASE
         value: roommate
       - key: MYSQL_USER
