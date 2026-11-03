@@ -39,7 +39,9 @@ public class OtpService {
     private final long expirySeconds;
     private final String deliveryMode;
     private final String mailFrom;
+    private final String brevoApiKey;
     private final RestClient restClient;
+    private final RestClient brevoClient;
 
     public OtpService(OtpChallengeRepository repository, JavaMailSender mailSender,
             PasswordEncoder passwordEncoder,
@@ -48,6 +50,7 @@ public class OtpService {
             @Value("${app.otp.expiry-seconds:300}") long expirySeconds,
             @Value("${app.otp.delivery-mode:email-sms}") String deliveryMode,
             @Value("${app.mail.from:}") String mailFrom,
+            @Value("${app.mail.brevo-api-key:}") String brevoApiKey,
             RestClient.Builder restClientBuilder) {
         this.repository = repository;
         this.mailSender = mailSender;
@@ -57,7 +60,9 @@ public class OtpService {
         this.expirySeconds = expirySeconds;
         this.deliveryMode = deliveryMode.trim().toLowerCase();
         this.mailFrom = mailFrom;
+        this.brevoApiKey = brevoApiKey.trim();
         this.restClient = restClientBuilder.baseUrl("https://control.msg91.com").build();
+        this.brevoClient = RestClient.builder().baseUrl("https://api.brevo.com").build();
     }
 
     @Transactional
@@ -112,24 +117,43 @@ public class OtpService {
 
     private void sendEmail(String email, String otp, String purpose) {
         try {
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setTo(email);
-            String smtpUsername = mailSender instanceof JavaMailSenderImpl senderImpl
-                    ? senderImpl.getUsername().trim() : "";
-            String sender = smtpUsername.contains("@")
-                    ? smtpUsername : mailFrom.trim().replaceFirst("\\.+$", "");
-            if (!sender.isBlank()) message.setFrom(sender);
-            message.setSubject("REGISTRATION".equals(purpose)
-                    ? "Verify your RoomMate account" : "Your RoomMate password reset code");
-            message.setText("Your RoomMate verification code is " + otp + ".\n\n"
+            String subject = "REGISTRATION".equals(purpose)
+                    ? "Verify your RoomMate account" : "Your RoomMate password reset code";
+            String body = "Your RoomMate verification code is " + otp + ".\n\n"
                     + "It expires in " + Math.max(1, (expirySeconds + 59) / 60) + " minute(s).\n\n"
-                    + "If you did not request this code, you can ignore this email.");
-            mailSender.send(message);
+                    + "If you did not request this code, you can ignore this email.";
+            if (!brevoApiKey.isBlank()) {
+                String sender = mailFrom.trim().replaceFirst("\\.+$", "");
+                if (sender.isBlank()) {
+                    throw new IllegalStateException("MAIL_FROM must be a verified Brevo sender address");
+                }
+                brevoClient.post()
+                        .uri("/v3/smtp/email")
+                        .header("api-key", brevoApiKey)
+                        .body(java.util.Map.of(
+                                "sender", java.util.Map.of("name", "RoomMate", "email", sender),
+                                "to", java.util.List.of(java.util.Map.of("email", email)),
+                                "subject", subject,
+                                "textContent", body))
+                        .retrieve()
+                        .toBodilessEntity();
+            } else {
+                SimpleMailMessage message = new SimpleMailMessage();
+                message.setTo(email);
+                String smtpUsername = mailSender instanceof JavaMailSenderImpl senderImpl
+                        ? senderImpl.getUsername().trim() : "";
+                String sender = smtpUsername.contains("@")
+                        ? smtpUsername : mailFrom.trim().replaceFirst("\\.+$", "");
+                if (!sender.isBlank()) message.setFrom(sender);
+                message.setSubject(subject);
+                message.setText(body);
+                mailSender.send(message);
+            }
         } catch (RuntimeException exception) {
             LOGGER.error("Email OTP delivery failed ({}): {}",
                     exception.getClass().getSimpleName(), exception.getMessage(), exception);
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
-                    "Email OTP delivery failed. Check the SMTP configuration.", exception);
+                    "Email OTP delivery failed. Check the email provider configuration.", exception);
         }
     }
 
