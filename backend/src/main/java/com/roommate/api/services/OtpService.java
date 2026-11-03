@@ -20,6 +20,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.web.client.RestClient;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -113,7 +114,10 @@ public class OtpService {
         try {
             SimpleMailMessage message = new SimpleMailMessage();
             message.setTo(email);
-            String sender = mailFrom.trim().replaceFirst("\\.$", "");
+            String smtpUsername = mailSender instanceof JavaMailSenderImpl senderImpl
+                    ? senderImpl.getUsername().trim() : "";
+            String sender = smtpUsername.contains("@")
+                    ? smtpUsername : mailFrom.trim().replaceFirst("\\.+$", "");
             if (!sender.isBlank()) message.setFrom(sender);
             message.setSubject("REGISTRATION".equals(purpose)
                     ? "Verify your RoomMate account" : "Your RoomMate password reset code");
