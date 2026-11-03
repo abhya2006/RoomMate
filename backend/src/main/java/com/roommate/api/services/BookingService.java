@@ -66,13 +66,13 @@ public class BookingService {
         String otp = String.format("%06d", random.nextInt(1_000_000));
         var booking = bookingRepository.save(new Booking(room, renter,
                 passwordEncoder.encode(otp), otpCipher.encrypt(otp)));
-        return BookingResponse.from(booking, null);
+        return BookingResponse.from(booking, otp);
     }
 
     @Transactional(readOnly = true)
     public List<BookingResponse> mine(String username) {
         return bookingRepository.findByRenterUsernameIgnoreCaseOrderByCreatedAtDesc(username)
-                .stream().map(booking -> BookingResponse.from(booking, otpAfterArrival(booking))).toList();
+                .stream().map(booking -> BookingResponse.from(booking, otpWhilePending(booking))).toList();
     }
 
     @Transactional(readOnly = true)
@@ -118,10 +118,6 @@ public class BookingService {
         if (!"REQUESTED".equals(booking.getStatus())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Booking is already processed");
         }
-        if (booking.getRenterArrivedAt() == null && booking.getOtpEncrypted() != null) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "The renter must arrive at the room before the OTP can confirm this booking");
-        }
         if (!passwordEncoder.matches(otp, booking.getOtpHash())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Incorrect booking OTP");
         }
@@ -129,9 +125,8 @@ public class BookingService {
         return BookingResponse.from(bookingRepository.save(booking), null);
     }
 
-    private String otpAfterArrival(com.roommate.api.entity.Booking booking) {
-        if (booking.getRenterArrivedAt() == null || booking.getOtpEncrypted() == null
-                || "CANCELLED".equals(booking.getStatus())) return null;
+    private String otpWhilePending(Booking booking) {
+        if (!"REQUESTED".equals(booking.getStatus()) || booking.getOtpEncrypted() == null) return null;
         return otpCipher.decrypt(booking.getOtpEncrypted());
     }
 
