@@ -34,7 +34,7 @@ class OtpServiceTest {
         when(restClientBuilder.baseUrl("https://control.msg91.com")).thenReturn(restClientBuilder);
         when(restClientBuilder.build()).thenReturn(mock(RestClient.class));
         OtpService service = new OtpService(repository, mock(JavaMailSender.class), mock(PasswordEncoder.class),
-                "", "", 300, "email", "", restClientBuilder);
+                "", "", 300, "email", "", "", restClientBuilder);
 
         assertThrows(ResponseStatusException.class, () -> service.verify(
                 new VerifyOtpRequest("challenge", "111111", "222222"), "REGISTRATION"));
